@@ -1,0 +1,13 @@
+kafka:
+  bootstrap.servers: "pkc-xxxxxxxx.us-east-1.aws.confluent.cloud:9092"
+  security.protocol: "SASL_SSL"
+  sasl.mechanism: "PLAIN"
+  sasl.username: "********************"
+  sasl.password: "********************"
+  schema_registry_url: "https://psrc-xxxxxxxx.us-east-1.aws.confluent.cloud"
+  schema_registry_api_key: "********************"
+  schema_registry_secret: "********************"
+  topics:
+    positions: "f1-driver-positions"
+    commentary: "f1-commentary"
+  consumer_group: "f1-leaderboard-consumer"
