@@ -17,7 +17,10 @@ A real-time F1 racing leaderboard with live position updates, AI-powered comment
 * [Frontend Setup](#frontend-setup)
 * [API Endpoints](#api-endpoints)
 * [Confluent Cloud (Kafka) Integration](#confluent-cloud-kafka-integration)
+* [OpenAI API Key Setup](#openai-api-key-setup)
 * [Flink SQL Statements](#flink-sql-statements)
+* [How to Use the Application](#how-to-use-the-application)
+* [Results](#results)
 * [Graceful Shutdown](#graceful-shutdown)
 
 ## Features
@@ -208,6 +211,36 @@ The application integrates with Confluent Cloud for real-time data streaming:
 * **Schema Registry:** Implements Avro schemas for data validation and evolution
 * **Consumer Groups:** Manages consumer groups for reliable message processing
 * **Error Handling:** Includes comprehensive error handling for Kafka operations
+
+## OpenAI API Key Setup
+
+Before using the AI commentary features, you'll need to create an OpenAI API key:
+
+1. **Visit OpenAI Platform:**
+   - Go to [https://platform.openai.com/](https://platform.openai.com/)
+   - Sign in to your OpenAI account or create a new one
+
+2. **Navigate to API Keys:**
+   - Click on your profile icon in the top-right corner
+   - Select "API Keys" from the dropdown menu
+
+3. **Create New API Key:**
+   - Click "Create new secret key"
+   - Enter a name for your API key (e.g., "F1-Leaderboard-App")
+   - Select the appropriate permissions (at minimum, you need access to GPT-3.5-turbo)
+   - Click "Create secret key"
+
+4. **Copy and Store Your Key:**
+   - **Important:** Copy the API key immediately as it won't be shown again
+   - Store it securely in your environment variables or configuration
+   - The key will look like: `sk-...` (starts with "sk-")
+
+
+6. **Add to Flink Configuration:**
+   - Use this API key in the Flink SQL statements below
+   - Replace `'***'` in the connection configuration with your actual API key
+
+> **Note:** Keep your API key secure and never commit it to version control. The F1 Leaderboard App uses GPT-3.5-turbo for generating race commentary.
 
 ## Flink SQL Statements
 
