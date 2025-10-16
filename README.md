@@ -1,6 +1,8 @@
-# F1 Live Leaderboard Application
+# F1 Leaderboard App v2
 
-This application provides a live view of an F1 racing leaderboard, along with detailed information about a selected driver. It uses a backend (Python with FastAPI) to retrieve and process data from Confluent Cloud (Kafka) and a frontend (React with Vite) to display the information.
+A real-time F1 racing leaderboard with live position updates, AI-powered commentary, and interactive driver selection powered by Kafka streaming and React. Experience the thrill of live F1 racing with dynamic position changes, automated race commentary, and the ability to follow your favorite driver's journey from start to podium finish.
+
+> Looking for the original version? [Check out F1 Leaderboard App v1 here.](https://github.com/conflkrupa/F1-Racing-Leaderboard-POC/tree/main)
 
 ![](images/architecture.gif)
 
@@ -15,19 +17,21 @@ This application provides a live view of an F1 racing leaderboard, along with de
 * [Frontend Setup](#frontend-setup)
 * [API Endpoints](#api-endpoints)
 * [Confluent Cloud (Kafka) Integration](#confluent-cloud-kafka-integration)
-* [Redis Usage](#redis-usage)
 * [Flink SQL Statements](#flink-sql-statements)
 * [Graceful Shutdown](#graceful-shutdown)
 
 ## Features
 
-* **Live Leaderboard:** Displays real-time F1 racing standings.
-* **Driver Details:** Provides information on individual drivers, position in the lap, and interval.
-* **Real-time Updates:** Leaderboard data is updated in real-time via Confluent Cloud (Kafka).
-* **Backend API:** Provides a RESTful API for fetching leaderboard data.
-* **User-Friendly Interface:** Clean and intuitive design with F1-themed styling.
-* **Server-Sent Events:** Real-time data streaming to the frontend.
-* **AI Commentary:** Automated F1 commentary generation using OpenAI integration.
+* **Interactive Race Simulation:** Start a race with your chosen driver and watch them compete for podium positions
+* **Real-time Position Updates:** Live leaderboard with dynamic position changes every second
+* **Driver Selection:** Choose from 10 F1 drivers and follow their race journey
+* **AI-Powered Commentary:** Automated race commentary generated using OpenAI GPT-3.5-turbo
+* **Race Management:** Complete race lifecycle from start to finish with progress tracking
+* **Podium Finishes:** Selected drivers can finish in 1st, 2nd, or 3rd place with realistic progression
+* **Server-Sent Events:** Real-time data streaming for live updates without page refresh
+* **Modern UI:** Clean, responsive interface with F1-themed styling and animations
+* **Race Status Tracking:** Monitor race progress, elapsed time, and remaining duration
+* **Final Results:** View complete race results and final standings
 
 ## Technologies Used
 
