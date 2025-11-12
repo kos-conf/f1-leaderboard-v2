@@ -41,24 +41,103 @@ git --version
 python3 -m venv test_env && rm -rf test_env
 ```
 
-## Part 1: Environment Setup
+## Part 1: Confluent Cloud Setup
 
-### Step 1.1: Clone the Repository and navigate to backend direcory
+### Step 1.1: Create Confluent Cloud Account
+- Go to [https://www.confluent.io/confluent-cloud/tryfree](https://www.confluent.io/confluent-cloud/tryfree/)
+- Sign up and verify your account
+
+### Step 1.2: Get Confluent Cloud Management API Credentials
+
+To deploy infrastructure programmatically, you need Confluent Cloud Management API credentials:
+
+1. Go to [Create API Keys](https://confluent.cloud/settings/api-keys/create?tab=cloud)
+2. Click **My account**
+3. Choose **Cloud resource management** for resource scope and click next
+4. Provide name and description (Optional) and click next
+5. Download API key and click **Complete**
+
+### Step 1.3: Configure Credentials
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/kos-conf/f1-leaderboard-v2.git
+   ```
+   ```bash
+   cd f1-leaderboard-v2
+   ```
+
+2. **Create admin config file:**
+   ```bash
+   cd admin
+   ```
+   ```bash
+   cp config.yaml.example config.yaml
+   ```
+
+3. **Edit `admin/config.yaml` and add your credentials:**
+   ```yaml
+   cloud_api_key: "your-api-key"
+   cloud_api_secret: "your-api-secret"
+   ```
+
+4. **Return to root directory:**
+   ```bash
+   cd ..
+   ```
+
+## Part 2: Environment Setup
+
+### Quick Setup (Recommended)
+
+We provide automated setup scripts that handle all the setup steps for you:
+
+**macOS/Linux:**
 ```bash
-git clone <repository-url> && cd <repository-name>/backend
+./setup.sh
 ```
 
-### Step 1.2: Set Up Backend Environment
+**Windows (PowerShell):**
+```powershell
+powershell -ExecutionPolicy Bypass -File setup.ps1
+```
+
+**Windows (Git Bash/WSL):**
+```bash
+./setup.sh
+```
+
+The setup script will:
+- ✅ Check all prerequisites (Python, Node.js, npm)
+- ✅ Set up backend virtual environment and install dependencies
+- ✅ Set up admin virtual environment and install dependencies
+- ✅ Set up frontend and install dependencies
+- ✅ Deploy Confluent Cloud infrastructure (if credentials are configured)
+
+> **Note:** Make sure you've configured `admin/config.yaml` with your Confluent Cloud API credentials (see Part 1) before running the setup script if you want to deploy infrastructure automatically.
+
+<details>
+<summary><b>Manual Setup (Alternative)</b></summary>
+
+If you prefer to set up manually or the automated script doesn't work for your environment:
+
+#### Step 1.1: Clone the Repository
+```bash
+git clone https://github.com/kos-conf/f1-leaderboard-v2.git && cd f1-leaderboard-v2
+```
+
+#### Step 1.2: Set Up Backend Environment
 
 Create virtual environment:
 ```bash
-python3 -m venv venv
+cd backend && python3 -m venv venv
 ```
+
 Activate virtual environment:
 
-- On MacOS
+- On macOS/Linux:
   ```bash
-  source venv/bin/activate  
+  source venv/bin/activate
   ```
 
 - On Windows: 
@@ -66,17 +145,38 @@ Activate virtual environment:
   venv\Scripts\activate
   ```
 
-Install dependecies:
-
+Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-Move to workshop root directory:
+
+Return to root directory:
 ```bash
 cd ..
 ```
 
-### Step 1.3: Set Up Frontend Environment
+#### Step 1.3: Set Up Admin Environment
+
+```bash
+cd admin && python3 -m venv venv
+```
+
+Activate virtual environment (same as above based on your OS), then:
+```bash
+pip install -r requirements.txt
+```
+
+Create config file:
+```bash
+cp config.yaml.example config.yaml
+```
+
+Return to root directory:
+```bash
+cd ..
+```
+
+#### Step 1.4: Set Up Frontend Environment
 ```bash
 cd frontend
 ```
@@ -87,57 +187,35 @@ npm install
 cd ..
 ```
 
-## Part 2: Confluent Cloud Setup
+</details>
 
-### Step 2.1: Create Confluent Cloud Account
-- Go to [https://www.confluent.io/confluent-cloud/tryfree](https://www.confluent.io/confluent-cloud/tryfree/)
-- Sign up and verify your account
+<details>
+<summary><b>Step 2.1: Deploy Infrastructure Using Admin Script (Manual Fallback)</b></summary>
 
-### Step 2.2: Get Confluent Cloud Management API Credentials
+> **Note:** The automated setup script (`./setup.sh` or `setup.ps1`) automatically deploys infrastructure if credentials are configured in `admin/config.yaml`. This step is only needed if:
+> - The automated deployment failed and you need to retry
+> - You prefer to deploy infrastructure manually
+> - You want to re-run the deployment after making changes
 
-To deploy infrastructure programmatically, you need Confluent Cloud Management API credentials:
-
-1. Go to [Create API Keys](https://confluent.cloud/settings/api-keys/create?tab=cloud)
-2. Click **My account**
-3. Choose **Cloud resource management** for resource scope and click next
-4. Provide name and description (Optional) and click next
-5. Download API key and click **Complete**
-
-### Step 2.3: Deploy Infrastructure Using Admin Script
-
-1. **Set up admin environment:**
-   ```bash
-   cd admin
-   ```
-   ```bash
-   python3 -m venv venv
-   ```
-   ```bash
-   source venv/bin/activate
-   ```
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Configure credentials:**
+1. **Activate virtual environment:**
    
-   Option 1: Environment variables
-   ```bash
-   export CONFLUENT_CLOUD_API_KEY="your-api-key"
-   export CONFLUENT_CLOUD_API_SECRET="your-api-secret"
-   ```
+   - On macOS/Linux:
+     ```bash
+     cd admin
+     ```
+     ```bash
+     source venv/bin/activate
+     ```
    
-   Option 2: Configuration file
-   ```bash
-   cp config.yaml.example config.yaml
-   ```
-   Edit `config.yaml` and add your credentials:
-   ```yaml
-   cloud_api_key: "your-api-key"
-   cloud_api_secret: "your-api-secret"
-   ```
+   - On Windows:
+     ```bash
+     cd admin
+     ```
+     ```powershell
+     venv\Scripts\Activate.ps1
+     ```
 
-3. **Run the admin script:**
+2. **Run the admin script:**
    ```bash
    python main.py
    ```
@@ -149,12 +227,12 @@ To deploy infrastructure programmatically, you need Confluent Cloud Management A
    - Create service account with appropriate roles
    - Create Kafka and Schema Registry API keys
    - Create the `f1-driver-positions` topic
-   - Register Avro schemas
+   - Register Avro schemas (data contracts)
    - Update `backend/config.yaml` with credentials
 
    > **Note:** The script is idempotent - safe to run multiple times. It will skip existing resources.
 
-4. **Verify configuration:**
+3. **Verify configuration:**
    Check that `backend/config.yaml` has been updated with your credentials:
    ```yaml
    kafka:
@@ -172,34 +250,16 @@ To deploy infrastructure programmatically, you need Confluent Cloud Management A
      consumer_group: "f1-leaderboard-consumer"
    ```
 
-## Part 3: Running the Application
+4. **Return to root directory:**
+   ```bash
+   cd ..
+   ```
 
-### Step 3.1: Start the Backend Server
-```bash
-cd backend
-```
-```bash
-source venv/bin/activate
-```
-```bash
-python3 main.py
-```
-> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
+</details>
 
-### Step 3.2: Start the Frontend Application
-Open a new terminal. Make sure you are in the directory of the repository. Then run the following.
-```bash
-cd frontend
-```
-```bash
-npm run dev
-```
+## Part 3: Implement Flink SQL Analytics
 
-> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
-
-## Part 4: Implement Flink SQL Analytics
-
-### Step 4.1: Open SQL Workspace
+### Step 3.1: Open SQL Workspace
 
 1. **Navigate to Flink in Confluent Cloud:**
    - Go to [Flink UI](https://confluent.cloud/go/flink)
@@ -213,7 +273,7 @@ npm run dev
    - Select your environment and Kafka cluster
    ![](images/catalog_database.png)
 
-### Step 4.2: Realtime Analytics with Confluent Cloud for Apache Flink
+### Step 3.2: Realtime Analytics with Confluent Cloud for Apache Flink
 
 Now that you have the SQL Workspace open, execute the following Flink SQL statements one by one:
 
@@ -282,11 +342,11 @@ Now that you have the SQL Workspace open, execute the following Flink SQL statem
 
 > **Note:** Make sure to replace the AWS credentials placeholders (`***`) with your actual AWS credentials before executing the first SQL statement.
 
-## Part 6: Car Metrics and Anomaly Detection Setup (Optional)
+## Part 4: Car Metrics and Anomaly Detection Setup (Optional)
 
 This is an optional advanced feature that demonstrates real-time anomaly detection using Confluent Flink's ML_DETECT_ANOMALIES function. The feature is disabled by default and can be enabled via configuration.
 
-### Step 6.1: Enable Anomaly Detection Feature
+### Step 4.1: Enable Anomaly Detection Feature
 
 1. **Edit `backend/config.yaml`:**
    ```yaml
@@ -296,6 +356,8 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
    ```
 
 2. **Re-run the admin script** to create the required topics:
+   
+   **macOS/Linux:**
    ```bash
    cd admin
    ```
@@ -306,27 +368,25 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
    python main.py
    ```
    
+   **Windows:**
+   ```powershell
+   cd admin
+   ```
+   ```powershell   
+   venv\Scripts\Activate.ps1
+   ```
+   ```powershell
+   python main.py
+   ```
+   
    This will create:
    - `f1-car-metrics` topic (for car telemetry data)
    
-   > **Note:** The `f1-car-metrics-anomalies` topic will be automatically created by Flink when you execute the anomaly detection INSERT statement (see Step 6.2).
-
-3. **Restart the backend server** to activate the feature:
-   ```bash
-   cd backend
-   ```
-   ```bash
-   source venv/bin/activate
-   ```
-   ```bash
-   python3 main.py
-   ```
-
-### Step 6.2: Set Up Flink SQL for Anomaly Detection
-
-1. **Open SQL Workspace** in Confluent Cloud Flink (same as Part 4)
+   > **Note:** The `f1-car-metrics-anomalies` topic will be automatically created by Flink when you execute the anomaly detection INSERT statement (see Step 4.2).
    
-   > **Note:** If using explicit connector configuration (not catalog), add full Kafka connector properties as shown in Part 4.
+### Step 4.2: Set Up Flink SQL for Anomaly Detection
+
+1. **Open SQL Workspace** in Confluent Cloud Flink (same as Part 3)
 
 2. **Create sink table for detected anomalies (Flink will auto-create the Kafka topic):**
    ```sql
@@ -381,13 +441,12 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
     ) AS s
     WHERE s.anomaly_results[6] = TRUE;
    ```
-   
 
-### Step 6.3: View Anomalies in UI
+### Step 4.3: View Anomalies in UI
 
 Once the feature is enabled and Flink queries are running:
 
-1. **Start a race** as described in Part 5
+1. **Start a race** from the frontend application
 2. **Click on the View Anomalies button** on the right bottom of the screen at anytime
 3. **Anomalies will appear in real-time** as they are detected by Flink
 
@@ -398,6 +457,145 @@ Once the feature is enabled and Flink queries are running:
 - **Default**: Feature is disabled (`enabled: false`) for backward compatibility
 
 > **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
+
+## Part 5: Running the Application
+
+Now that all Flink SQL statements (including optional anomaly detection) are set up, start the backend and frontend servers:
+
+### Step 5.1: Start the Backend Server
+
+**macOS/Linux:**
+```bash
+cd backend
+```
+```bash
+source venv/bin/activate
+```
+```bash
+python3 main.py
+```
+
+**Windows:**
+```powershell
+cd backend
+```
+```powershell
+venv\Scripts\Activate.ps1
+```
+```powershell
+python main.py
+```
+
+> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
+
+### Step 5.2: Start the Frontend Application
+Open a new terminal. Make sure you are in the directory of the repository. Then run the following.
+```bash
+cd frontend
+```
+```bash
+npm run dev
+```
+
+> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
+
+## Part 7: Vector Search with MongoDB (Optional)
+
+This optional section demonstrates semantic vector search using MongoDB Atlas and Amazon Bedrock embeddings. This allows you to search F1 race commentary and driver information using natural language queries.
+
+### Prerequisites
+
+- MongoDB Atlas cluster with a collection containing text data and embeddings
+- Amazon Bedrock access with embedding model permissions
+- MongoDB API key for authentication
+
+### Step 7.1: Set Up Vector Search
+
+1. **Create Amazon Bedrock connection for embeddings:**
+   ```sql
+   CREATE CONNECTION bedrock_embedding_connection
+   WITH (
+     'type' = 'bedrock',
+     'endpoint' = 'https://bedrock-runtime.us-east-1.amazonaws.com/model/us.amazon.titan-embed-text-v1:0',
+     'aws-access-key' = '<YOUR_AWS_ACCESS_KEY>',
+     'aws-secret-key' = '<YOUR_AWS_SECRET_KEY>',
+     'aws-session-token' = '<YOUR_AWS_SESSION_TOKEN>'
+   );
+   ```
+
+2. **Create embedding model:**
+   ```sql
+   CREATE MODEL f1_embedding_model
+   INPUT (text STRING)
+   OUTPUT (response ARRAY<FLOAT>)
+   WITH (
+      'bedrock.connection'='bedrock_embedding_connection',
+      'bedrock.input_format'='AMAZON-TITAN-EMBED',
+      'provider'='bedrock',
+      'task'='embedding'
+   );
+   ```
+
+3. **Create MongoDB connection:**
+   ```sql
+   CREATE CONNECTION mongodb_connection
+   WITH (
+     'type' = 'mongodb',
+     'endpoint' = '<YOUR_MONGODB_ATLAS_ENDPOINT>',
+     'username' = '<YOUR_MONGODB_USERNAME>',
+     'password' = '<YOUR_MONGODB_PASSWORD>'
+   );
+   ```
+
+4. **Create MongoDB external table:**
+   ```sql
+   CREATE TABLE f1_mongodb_search (
+     commentary_text STRING,
+     driver_name STRING,
+     race_context STRING,
+     embedding_vector ARRAY<FLOAT>
+   ) WITH (
+     'connector' = 'mongodb',
+     'mongodb.connection' = 'mongodb_connection',
+     'mongodb.database' = 'f1_leaderboard',
+     'mongodb.collection' = 'race_commentary',
+     'mongodb.index' = 'idx_embedding_vector',
+     'mongodb.numcandidates' = '100'
+   );
+   ```
+
+5. **Create input table and generate embeddings:**
+   ```sql
+   CREATE TABLE search_query (query_text STRING);
+   CREATE TABLE query_embeddings (query_text STRING, embedding ARRAY<FLOAT>);
+   
+   INSERT INTO search_query VALUES ('Which driver had the fastest lap?');
+   INSERT INTO query_embeddings 
+   SELECT query_text, embedding 
+   FROM search_query,
+   LATERAL TABLE(ML_PREDICT('f1_embedding_model', query_text)) AS e(embedding);
+   ```
+
+6. **Perform semantic vector search:**
+   ```sql
+   SELECT 
+     driver_name,
+     commentary_text,
+     race_context,
+     score
+   FROM query_embeddings,
+   LATERAL TABLE(VECTOR_SEARCH_AGG(
+     f1_mongodb_search, 
+     DESCRIPTOR(embedding_vector), 
+     embedding, 
+     5
+   )) AS results(commentary_text, driver_name, race_context, score)
+   ORDER BY score DESC;
+   ```
+
+> **Note:** Replace the placeholder values (`<YOUR_AWS_ACCESS_KEY>`, `<YOUR_MONGODB_ATLAS_ENDPOINT>`, etc.) with your actual credentials. The MongoDB collection should contain commentary text with pre-computed embeddings in the `embedding_vector` field.
+
+> **Reference:** For more details on vector search with MongoDB, see the [Confluent Cloud documentation](https://docs.confluent.io/cloud/current/ai/external-tables/vector-search.html#vector-database-search-with-mongodb).
 
 ## Results
 ![](images/finished.png)
@@ -425,8 +623,15 @@ Use the teardown script to automatically delete all resources:
    ```
 
 2. **Activate virtual environment (if not already activated):**
+   
+   **macOS/Linux:**
    ```bash
    source venv/bin/activate
+   ```
+   
+   **Windows:**
+   ```powershell
+   venv\Scripts\Activate.ps1
    ```
 
 3. **Run the teardown script:**
@@ -466,3 +671,4 @@ rm -rf admin/venv
 ---
 
 **🎉 Lab Complete!** You've successfully built a real-time F1 analytics application.
+
