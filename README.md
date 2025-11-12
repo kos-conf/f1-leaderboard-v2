@@ -248,20 +248,19 @@ Now that you have the SQL Workspace open, execute the following Flink SQL statem
      'bedrock.params.max_tokens' = '20000'
    );
    ```
-
-3. **Create a f1_commentary topic**
+3. **Create f1-commentary topic:**
    ```sql
-  CREATE TABLE `f1-commentary` (
+   CREATE TABLE `f1-commentary` (
     id STRING,
     message STRING,
     `timestamp` BIGINT,
     type STRING
-  ) WITH (
-      'value.format' = 'json-registry'
-  );
-  ```
+   ) WITH (
+         'value.format' = 'json-registry'
+   );
+   ```
 
-3. **Generate Real-Time Commentary:**
+4. **Generate Real-Time Commentary:**
    ```sql
    INSERT INTO `f1-commentary`
    SELECT 
@@ -338,11 +337,11 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
     engine_temperature DOUBLE,
     is_anomaly BOOLEAN,
     PRIMARY KEY (key, ts) NOT ENFORCED
-  )
-  DISTRIBUTED BY (key, ts)
-  WITH (
-    'changelog.mode' = 'upsert'
-  );
+   )
+   DISTRIBUTED BY (key, ts)
+   WITH (
+      'changelog.mode' = 'upsert'
+   );
    ```
    
    > **Note:** Using `changelog.mode = 'append'` because `ML_DETECT_ANOMALIES` in window functions doesn't support retraction. Anomalies are append-only events.
@@ -351,6 +350,7 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
 
 3. **Create simple Flink SQL query for anomaly detection:**
    ```sql
+    SET 'sql.state-ttl' = '24 h';
     INSERT INTO `f1-car-metrics-anomalies`
     SELECT
       CAST(key AS STRING) AS key,
@@ -388,12 +388,8 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
 Once the feature is enabled and Flink queries are running:
 
 1. **Start a race** as described in Part 5
-2. **Watch the Anomaly Detection panel** on the right side of the UI
+2. **Click on the View Anomalies button** on the right bottom of the screen at anytime
 3. **Anomalies will appear in real-time** as they are detected by Flink
-4. **Anomalies are color-coded by severity:**
-   - 🔴 Critical: High confidence with extreme values
-   - 🟡 Warning: Medium-high confidence
-   - 🔵 Info: Lower confidence anomalies
 
 ### Feature Behavior
 
@@ -402,15 +398,6 @@ Once the feature is enabled and Flink queries are running:
 - **Default**: Feature is disabled (`enabled: false`) for backward compatibility
 
 > **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
-
-## Part 5: Hands-On Lab Exercise
-
-- Select a driver and start a race
-- Watch the race starting animation
-- Monitor live position updates
-- View performance analytics
-- Test race management controls
-- (Optional) If anomaly detection is enabled: Monitor car metrics and detected anomalies in real-time
 
 ## Results
 ![](images/finished.png)
