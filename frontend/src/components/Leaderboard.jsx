@@ -69,7 +69,7 @@ const Leaderboard = ({ selectedDriver, raceId, raceStatus }) => {
         </h2>
         <div className="connection-status">
           <span className={`status-indicator ${positionsConnected ? 'connected' : 'disconnected'}`}>
-            {positionsConnected ? '● Live' : '● Offline'}
+            {positionsConnected ? 'LIVE' : 'OFFLINE'}
           </span>
         </div>
       </div>

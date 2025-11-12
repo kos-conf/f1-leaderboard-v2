@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Leaderboard from './components/Leaderboard';
 import CommentaryPanel from './components/CommentaryPanel';
+import AnomalyPanel from './components/AnomalyPanel';
 import DriverSelection from './components/DriverSelection';
 import './App.css';
 
@@ -16,6 +17,10 @@ function App() {
   const [showRaceFinished, setShowRaceFinished] = useState(false);
   const [finalPositions, setFinalPositions] = useState(null);
   const [commentaryReceived, setCommentaryReceived] = useState(false);
+  const [showAnomaliesPage, setShowAnomaliesPage] = useState(false);
+  const [showAnomaliesModal, setShowAnomaliesModal] = useState(false);
+  const [anomalies, setAnomalies] = useState([]);
+  const [loadingAnomalies, setLoadingAnomalies] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -149,6 +154,53 @@ function App() {
     setShowRaceFinished(false);
     setFinalPositions(null);
     setCommentaryReceived(false);
+    setShowAnomaliesPage(false);
+  };
+
+  const handleViewAnomalies = () => {
+    setShowAnomaliesPage(true);
+    setShowMainApp(true);
+  };
+
+  const handleBackFromAnomalies = () => {
+    setShowAnomaliesPage(false);
+    setShowMainApp(false);
+  };
+
+  const fetchAnomalies = async () => {
+    setLoadingAnomalies(true);
+    
+    try {
+      const url = raceId 
+        ? `http://localhost:8001/api/anomalies/latest?race_id=${raceId}`
+        : 'http://localhost:8001/api/anomalies/latest';
+      
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setAnomalies(data.anomalies || []);
+      } else if (response.status === 404) {
+        // Feature not enabled
+        setAnomalies([]);
+      } else {
+        console.error('Failed to fetch anomalies:', response.status);
+        setAnomalies([]);
+      }
+    } catch (error) {
+      console.error('Error fetching anomalies:', error);
+      setAnomalies([]);
+    } finally {
+      setLoadingAnomalies(false);
+    }
+  };
+
+  const handleAnomaliesButtonClick = async () => {
+    setShowAnomaliesModal(true);
+    await fetchAnomalies();
+  };
+
+  const handleCloseAnomaliesModal = () => {
+    setShowAnomaliesModal(false);
   };
 
   const formatTime = (date) => {
@@ -267,30 +319,40 @@ function App() {
         </div>
       )}
       
-      <main className={`app-main ${!showMainApp ? 'selection-mode' : ''}`}>
+      <main className={`app-main ${!showMainApp ? 'selection-mode' : ''} ${showAnomaliesPage ? 'anomalies-mode' : ''}`}>
         {!showMainApp ? (
           <div className="selection-container">
             <DriverSelection 
               onDriverSelect={handleDriverSelect}
               selectedDriver={selectedDriver}
               isStartingRace={isStartingRace}
+              isRaceFinished={isRaceFinished}
+              raceId={raceId}
+              onViewAnomalies={handleViewAnomalies}
             />
+          </div>
+        ) : showAnomaliesPage ? (
+          <div className="anomalies-page">
+            <div className="anomalies-page-header">
+              <button className="back-button" onClick={handleBackFromAnomalies}>
+                ← Back to Home
+              </button>
+              <h2>Anomaly Detection</h2>
+            </div>
+            <div className="anomalies-page-content">
+              <AnomalyPanel raceId={raceId} />
+            </div>
           </div>
         ) : (
           <>
             {raceStatus && (
               <div className="race-progress">
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill" 
-                    style={{ width: `${getRaceProgress()}%` }}
-                  ></div>
-                </div>
                 <div className="race-info">
                   {isRaceFinished ? (
                     <>
-                      <span className="race-finished">🏁 Race Finished!</span>
-                      <span className="race-finished">Final Progress: {getRaceProgress()}%</span>
+                      <span className="race-finished">🏁 Race</span>
+                      <span className="race-finished">Finished!</span>
+                      <span className="race-progress-text">Final Progress: {getRaceProgress()}%</span>
                     </>
                   ) : (
                     <>
@@ -298,6 +360,12 @@ function App() {
                       <span>Time Remaining: {getRemainingTime()}s</span>
                     </>
                   )}
+                </div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ width: `${getRaceProgress()}%` }}
+                  ></div>
                 </div>
               </div>
             )}
@@ -320,6 +388,116 @@ function App() {
           </>
         )}
       </main>
+
+      {/* Always visible anomalies button */}
+      <div className="anomalies-button-section">
+        <button 
+          className="view-anomalies-button"
+          onClick={handleAnomaliesButtonClick}
+        >
+          <span className="anomaly-icon">⚠️</span>
+          View Anomalies
+        </button>
+      </div>
+
+      {/* Anomalies Modal */}
+      {showAnomaliesModal && (
+        <div className="anomalies-modal-overlay" onClick={handleCloseAnomaliesModal}>
+          <div className="anomalies-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="anomalies-modal-header">
+              <h2>Anomaly Detection</h2>
+              <div className="modal-header-actions">
+                <button 
+                  className="modal-refresh-button" 
+                  onClick={fetchAnomalies}
+                  disabled={loadingAnomalies}
+                  title="Refresh anomalies"
+                >
+                  🔄
+                </button>
+                <button className="modal-close-button" onClick={handleCloseAnomaliesModal}>
+                  ×
+                </button>
+              </div>
+            </div>
+            <div className="anomalies-modal-content">
+              {loadingAnomalies ? (
+                <div className="loading">
+                  <div className="loading-spinner"></div>
+                  <p>Loading anomalies...</p>
+                </div>
+              ) : anomalies.length === 0 ? (
+                <div className="no-anomalies">
+                  <p>No anomalies detected yet.</p>
+                  <p className="hint">Anomalies will appear here when detected by Flink ML_DETECT_ANOMALIES.</p>
+                </div>
+              ) : (
+                <div className="anomalies-list">
+                  {anomalies.map((anomaly, index) => {
+                    const getSeverityClass = (severity) => {
+                      switch (severity) {
+                        case 'critical': return 'anomaly-critical';
+                        case 'warning': return 'anomaly-warning';
+                        default: return 'anomaly-info';
+                      }
+                    };
+                    
+                    const getSeverityIcon = (severity) => {
+                      switch (severity) {
+                        case 'critical': return '🔴';
+                        case 'warning': return '🟡';
+                        default: return '🔵';
+                      }
+                    };
+                    
+                    const formatTimestamp = (timestamp) => {
+                      if (!timestamp) return '';
+                      const date = typeof timestamp === 'number' ? new Date(timestamp) : new Date(timestamp);
+                      if (isNaN(date.getTime())) return '';
+                      return date.toLocaleTimeString('en-US', { 
+                        hour12: false, 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit'
+                      });
+                    };
+                    
+                    const formatMetricValue = (metricName, value) => {
+                      if (metricName.toLowerCase().includes('temperature')) {
+                        return `${value.toFixed(1)}°C`;
+                      } else if (metricName.toLowerCase().includes('pressure')) {
+                        return `${value.toFixed(2)} bar`;
+                      }
+                      return value.toFixed(2);
+                    };
+                    
+                    return (
+                      <div
+                        key={`${anomaly.timestamp}-${anomaly.team_name}-${anomaly.metric_name}-${index}`}
+                        className={`anomaly-item ${getSeverityClass(anomaly.severity)}`}
+                      >
+                        <div className="anomaly-header-item">
+                          <span className="anomaly-severity-icon">{getSeverityIcon(anomaly.severity)}</span>
+                          <span className="anomaly-driver">{anomaly.driver_name || anomaly.team_name}</span>
+                          <span className="anomaly-team">{anomaly.team_name}</span>
+                          <span className="anomaly-time">{formatTimestamp(anomaly.timestamp)}</span>
+                        </div>
+                        <div className="anomaly-metric">
+                          <span className="anomaly-metric-name">{anomaly.metric_name}:</span>
+                          <span className="anomaly-metric-value">{formatMetricValue(anomaly.metric_name, anomaly.metric_value)}</span>
+                        </div>
+                        <div className="anomaly-confidence">
+                          Confidence: {((anomaly.confidence_score || 0) * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

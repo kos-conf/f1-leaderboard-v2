@@ -1,9 +1,16 @@
 import yaml
 from typing import Dict, Any
 import os
+from pathlib import Path
 
 class Config:
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config_path: str = None):
+        if config_path is None:
+            # Default to config.yaml in the same directory as this file
+            config_path = Path(__file__).parent / "config.yaml"
+        else:
+            config_path = Path(config_path)
+        
         with open(config_path, 'r') as file:
             self.config = yaml.safe_load(file)
     
@@ -39,6 +46,13 @@ class Config:
     
     def get_consumer_group(self) -> str:
         return self.config['kafka']['consumer_group']
+    
+    def is_anomaly_detection_enabled(self) -> bool:
+        """Check if anomaly detection feature is enabled"""
+        try:
+            return self.config.get('features', {}).get('anomaly_detection', {}).get('enabled', False)
+        except (KeyError, AttributeError):
+            return False
 
 # Global config instance
 config = Config()

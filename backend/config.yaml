@@ -1,13 +1,18 @@
 kafka:
-  bootstrap.servers: "pkc-xxxxxxxx.us-east-1.aws.confluent.cloud:9092"
+  bootstrap.servers: 'BOOTSTRAP_SERVER_URL_FROM_API_KEY_FILE'
   security.protocol: "SASL_SSL"
   sasl.mechanism: "PLAIN"
-  sasl.username: "********************"
-  sasl.password: "********************"
-  schema_registry_url: "https://psrc-xxxxxxxx.us-east-1.aws.confluent.cloud"
-  schema_registry_api_key: "********************"
-  schema_registry_secret: "********************"
+  sasl.username: 'YOUR_CONFLUENT_CLOUD_API_KEY'
+  sasl.password: 'YOUR_CONFLUENT_CLOUD_API_SECRET'
+  schema_registry_url: 'YOUR_SCHEMA_REGISTRY_URL'
+  schema_registry_api_key: 'YOUR_SCHEMA_REGISTRY_API_KEY'
+  schema_registry_secret: 'YOUR_SCHEMA_REGISTRY_SECRET'
   topics:
-    positions: "f1-driver-positions"
-    commentary: "f1-commentary"
-  consumer_group: "f1-leaderboard-consumer"
+    positions: f1-driver-positions
+    commentary: f1_commentary
+    car_metrics: f1-car-metrics
+    car_metrics_anomalies: f1-car-metrics-anomalies
+  consumer_group: f1-leaderboard-consumer
+features:
+  anomaly_detection:
+    enabled: true

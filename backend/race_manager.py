@@ -5,6 +5,7 @@ from typing import Dict, Optional, List
 from enum import Enum
 from models import Driver, F1_DRIVERS
 from position_generator import RealisticPositionGenerator
+from config import config
 
 class RaceStatus(Enum):
     NOT_STARTED = "not_started"
@@ -84,6 +85,18 @@ class RaceManager:
         self.position_producer = position_producer
         self.running = False
         self._cleanup_task = None
+        self._car_metrics_producer = None
+        self._car_metrics_task = None
+        
+        # Initialize car metrics producer if feature is enabled
+        if config.is_anomaly_detection_enabled():
+            try:
+                from car_metrics_producer import get_car_metrics_producer
+                self._car_metrics_producer = get_car_metrics_producer()
+                if self._car_metrics_producer:
+                    print("Car metrics producer initialized")
+            except Exception as e:
+                print(f"Failed to initialize car metrics producer: {e}")
         
     def create_race(self, driver_name: str) -> str:
         """
@@ -136,6 +149,11 @@ class RaceManager:
             return False
         
         race.start()
+        
+        # Start car metrics production if enabled
+        if self._car_metrics_producer:
+            self._car_metrics_producer.start_race_metrics(race_id)
+        
         print(f"Started race {race_id}")
         return True
     
@@ -275,6 +293,10 @@ class RaceManager:
         if race.status != RaceStatus.FINISHED:
             race.finish()
         
+        # Stop car metrics production if enabled
+        if self._car_metrics_producer:
+            self._car_metrics_producer.stop_race_metrics(race_id)
+        
         print(f"Race {race_id} finished")
     
     def cleanup_finished_races(self):
@@ -295,6 +317,13 @@ class RaceManager:
     async def start_cleanup_task(self):
         """Start the cleanup task that runs every 10 minutes."""
         self.running = True
+        
+        # Start car metrics production loop if enabled
+        if self._car_metrics_producer:
+            self._car_metrics_task = asyncio.create_task(
+                self._car_metrics_producer.produce_metrics_loop()
+            )
+        
         while self.running:
             try:
                 self.cleanup_finished_races()
@@ -306,6 +335,14 @@ class RaceManager:
     def stop_cleanup_task(self):
         """Stop the cleanup task."""
         self.running = False
+        
+        # Stop car metrics producer if enabled
+        if self._car_metrics_producer:
+            self._car_metrics_producer.stop()
+        
+        # Cancel car metrics task if running
+        if self._car_metrics_task:
+            self._car_metrics_task.cancel()
 
 # Global race manager instance
 race_manager = RaceManager()

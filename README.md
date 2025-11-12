@@ -1,343 +1,481 @@
-# F1 Leaderboard App v2
+# F1 Real-Time Analytics Lab
 
-A real-time F1 racing leaderboard with live position updates, AI-powered commentary, and interactive driver selection powered by Kafka streaming and React. Experience the thrill of live F1 racing with dynamic position changes, automated race commentary, and the ability to follow your favorite driver's journey from start to podium finish.
+## Building a Live F1 Leaderboard with Kafka and Flink
 
-> Looking for the original version? [Check out F1 Leaderboard App v1 here.](https://github.com/conflkrupa/F1-Racing-Leaderboard-POC/tree/main)
+Build a real-time F1 racing leaderboard using Apache Kafka, Confluent Cloud, Apache Flink SQL, and React.
+
+### What You'll Build
+- Real-time race simulation with live position updates
+- Performance analytics with average speed tracking
+- Interactive driver selection and race management
+- Live dashboard with Server-Sent Events
 
 ![](images/architecture.gif)
 
-## Table of Contents
-
-* [Features](#features)
-* [Technologies Used](#technologies-used)
-* [Prerequisites](#prerequisites)
-* [Installation](#installation)
-* [Running the Application](#running-the-application)
-* [Backend Setup](#backend-setup)
-* [Frontend Setup](#frontend-setup)
-* [API Endpoints](#api-endpoints)
-* [Confluent Cloud (Kafka) Integration](#confluent-cloud-kafka-integration)
-* [OpenAI API Key Setup](#openai-api-key-setup)
-* [Flink SQL Statements](#flink-sql-statements)
-* [How to Use the Application](#how-to-use-the-application)
-* [Results](#results)
-* [Graceful Shutdown](#graceful-shutdown)
-
-## Features
-
-* **Interactive Race Simulation:** Start a race with your chosen driver and watch them compete for podium positions
-* **Real-time Position Updates:** Live leaderboard with dynamic position changes every second
-* **Driver Selection:** Choose from 10 F1 drivers and follow their race journey
-* **AI-Powered Commentary:** Automated race commentary generated using OpenAI GPT-3.5-turbo
-* **Race Management:** Complete race lifecycle from start to finish with progress tracking
-* **Podium Finishes:** Selected drivers can finish in 1st, 2nd, or 3rd place with realistic progression
-* **Server-Sent Events:** Real-time data streaming for live updates without page refresh
-* **Modern UI:** Clean, responsive interface with F1-themed styling and animations
-* **Race Status Tracking:** Monitor race progress, elapsed time, and remaining duration
-* **Final Results:** View complete race results and final standings
-
-## Technologies Used
-
-* **Backend:**
-    * Python 3.11
-    * FastAPI
-    * Uvicorn
-    * Confluent Kafka
-    * Pydantic
-    * FastAvro
-* **Frontend:**
-    * React 19.1.1
-    * Vite
-    * JavaScript (ES6+)
-    * CSS3
-* **Data Streaming:**
-    * Confluent Cloud
-    * Kafka Schema Registry
-* **AI Integration:**
-    * OpenAI GPT-3.5-turbo
-    * Confluent Flink With AI
-
 ## Prerequisites
 
-Before you begin, ensure you have the following installed and accounts set up:
+### Required Software
+| Software | Version | Verification Command |
+|----------|---------|---------------------|
+| **Node.js** | 18+ | `node --version` |
+| **npm** | 9+ | `npm --version` |
+| **Python** | 3.11+ | `python3 --version` |
+| **pip** | Latest | `pip3 --version` |
+| **Git** | Latest | `git --version` |
 
-* **Node.js and npm:** [https://nodejs.org/](https://nodejs.org/)
-* **Python 3.11**: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-* **Pip3 installation**: [https://pip.pypa.io/en/stable/installation/](https://pip.pypa.io/en/stable/installation/)
-* **Confluent Cloud Account:** You'll need an account on Confluent Cloud with a Kafka cluster set up. [https://www.confluent.io/confluent-cloud/tryfree](https://www.confluent.io/confluent-cloud/tryfree/)
+### Required Accounts
+- **Confluent Cloud Account** (Free tier available)
+  - Sign up at: [https://www.confluent.io/confluent-cloud/tryfree](https://www.confluent.io/confluent-cloud/tryfree/)
 
-## Installation
+### Pre-Lab Verification
+```bash
+node --version && npm --version
+```
+```bash
+python3 --version && pip3 --version
+```
+```bash
+git --version
+```
+```bash
+python3 -m venv test_env && rm -rf test_env
+```
 
-1.  **Clone the repository:**
-   Open a code editor such as VS code. Open a terminal and run the following.
+## Part 1: Environment Setup
 
-    ```bash
-    git clone <repository-url>
-    cd f1-leaderboard
-    ```
+### Step 1.1: Clone the Repository and navigate to backend direcory
+```bash
+git clone <repository-url> && cd <repository-name>/backend
+```
 
-2.  **Install backend dependencies:**
+### Step 1.2: Set Up Backend Environment
 
-    ```bash
-    cd backend
-    python3 -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-    pip install -r requirements.txt
-    cd ..
-    ```
+Create virtual environment:
+```bash
+python3 -m venv venv
+```
+Activate virtual environment:
 
-3.  **Install frontend dependencies:**
+- On MacOS
+  ```bash
+  source venv/bin/activate  
+  ```
 
-    ```bash
-    cd frontend
-    npm install
-    cd ..
-    ```
+- On Windows: 
+  ```bash
+  venv\Scripts\activate
+  ```
 
-## Running the Application
+Install dependecies:
 
-1.  **Setup Confluent Cloud**
-      
-    * Sign in to Confluent Cloud- (https://confluent.cloud/auth_callback)
-    * Create an Environment and a Basic Cluster
-    * Create Kafka API key using this link- (https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/manage-api-keys.html#add-an-api-key).<br>
-         a. Navigate to the hamburger icon on top right corner and select API Keys.<br>
-         b. Click "Add API Key".<br>
-         c. Select "User Account" and click "Next".<br>
-         d. Select Kafka Cluster and below this, choose the Environment and Cluster you will be using and Click "Next".<br>
-         e. Add a name and a description and click "Next".<br>
-         f. Click "Download API Key" at the bottom beside Complete button and once downloaded, click "Complete"<br>
-         ![](images/apikey_permission.png)
-    * Create Schema Registry API key using this link- (https://docs.confluent.io/cloud/current/schema-registry/configure-schema-registry/configure-schema-registry-api-keys.html).<br>
-         a. Navigate to Schema Registry in the left navigation pane.<br>
-         b. Click "Add API Key".<br>
-         c. Add a name and description for the API key.<br>
-         d. Click "Download API Key" and save the credentials.<br>
-    * Go to the cluster you created before. Go to topics in the left navigation pane, click topics.<br>
-    * Click "Create a topic" and name it "**f1-driver-positions**". Create with Defaults. Skip the data contracts for now.<br>
-    * Open the `backend/config.yaml` file and add your Confluent Cloud credentials:
+```bash
+pip install -r requirements.txt
+```
+Move to workshop root directory:
+```bash
+cd ..
+```
 
-       ```yaml
-       kafka:
-         bootstrap.servers: '<YOUR_CONFLUENT_CLOUD_CLUSTER_URL>'
-         security.protocol: "SASL_SSL"
-         sasl.mechanism: "PLAIN"
-         sasl.username: '<YOUR_CONFLUENT_CLOUD_API_KEY>'
-         sasl.password: '<YOUR_CONFLUENT_CLOUD_API_SECRET>'
-         schema_registry_url: '<YOUR_SCHEMA_REGISTRY_URL>'
-         schema_registry_api_key: '<YOUR_SCHEMA_REGISTRY_API_KEY>'
-         schema_registry_secret: '<YOUR_SCHEMA_REGISTRY_SECRET>'
-         topics:
-           positions: "f1-driver-positions"
-           commentary: "f1-commentary"
-         consumer_group: "f1-leaderboard-consumer"
-       ```
+### Step 1.3: Set Up Frontend Environment
+```bash
+cd frontend
+```
+```bash
+npm install
+```
+```bash
+cd ..
+```
 
-2.  **Start the backend server:**
+## Part 2: Confluent Cloud Setup
 
-    * **Open a new terminal window.**
+### Step 2.1: Create Confluent Cloud Account
+- Go to [https://www.confluent.io/confluent-cloud/tryfree](https://www.confluent.io/confluent-cloud/tryfree/)
+- Sign up and verify your account
 
-    ```bash
-    cd backend
-    source venv/bin/activate
-    python main.py
-    ```
-   * The server will start at `http://localhost:8001`.
+### Step 2.2: Get Confluent Cloud Management API Credentials
 
-3.  **Run the frontend:**
-    * Open another **new terminal**
-    * Navigate to frontend directory,
-      ```bash
-        cd frontend
-      ```
-    * Run the development server:
-      ```bash
-        npm run dev
-      ```
-    * This will display under which port the frontend is serving. The frontend will be available at `http://localhost:5173`.
+To deploy infrastructure programmatically, you need Confluent Cloud Management API credentials:
 
-## Backend Setup
+1. Go to [Create API Keys](https://confluent.cloud/settings/api-keys/create?tab=cloud)
+2. Click **My account**
+3. Choose **Cloud resource management** for resource scope and click next
+4. Provide name and description (Optional) and click next
+5. Download API key and click **Complete**
 
-The backend is built with Python FastAPI and handles API requests and consumes real-time data from Confluent Cloud (Kafka).
+### Step 2.3: Deploy Infrastructure Using Admin Script
 
-### Key Functionality
+1. **Set up admin environment:**
+   ```bash
+   cd admin
+   ```
+   ```bash
+   python3 -m venv venv
+   ```
+   ```bash
+   source venv/bin/activate
+   ```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-* **Confluent Cloud (Kafka) Consumer:**
-    * Connects to Confluent Cloud using the provided credentials.
-    * Subscribes to the specified Kafka topics.
-    * Consumes real-time leaderboard data messages.
-    * Parses the JSON messages using Avro schemas.
-    * Streams real-time data directly to the frontend.
-* **API Endpoints:** Provides REST endpoints to fetch leaderboard data and driver information.
-* **Server-Sent Events:** Real-time streaming of position updates to connected clients.
-* **CORS:** Enables Cross-Origin Resource Sharing to allow requests from the frontend.
-* **Graceful Shutdown:** Handles signals to ensure proper disconnection from Confluent Cloud (Kafka) before exiting.
-* **Error Handling:** Includes error logging and handling for Confluent Cloud (Kafka) and API requests.
+2. **Configure credentials:**
+   
+   Option 1: Environment variables
+   ```bash
+   export CONFLUENT_CLOUD_API_KEY="your-api-key"
+   export CONFLUENT_CLOUD_API_SECRET="your-api-secret"
+   ```
+   
+   Option 2: Configuration file
+   ```bash
+   cp config.yaml.example config.yaml
+   ```
+   Edit `config.yaml` and add your credentials:
+   ```yaml
+   cloud_api_key: "your-api-key"
+   cloud_api_secret: "your-api-secret"
+   ```
 
-## Frontend Setup
+3. **Run the admin script:**
+   ```bash
+   python main.py
+   ```
 
-The frontend is built with React and Vite, providing a modern, responsive interface for the F1 leaderboard.
+   This script will automatically:
+   - Create a Confluent Cloud environment
+   - Create a Basic Kafka cluster in AWS us-east-2 region
+   - Create a Flink compute pool in AWS us-east-2 region
+   - Create service account with appropriate roles
+   - Create Kafka and Schema Registry API keys
+   - Create the `f1-driver-positions` topic
+   - Register Avro schemas
+   - Update `backend/config.yaml` with credentials
 
-### Dependencies
+   > **Note:** The script is idempotent - safe to run multiple times. It will skip existing resources.
 
-* React 19.1.1
-* Vite
-* Google Fonts (Inter, Orbitron)
+4. **Verify configuration:**
+   Check that `backend/config.yaml` has been updated with your credentials:
+   ```yaml
+   kafka:
+     bootstrap.servers: 'your-cluster-endpoint'
+     security.protocol: "SASL_SSL"
+     sasl.mechanism: "PLAIN"
+     sasl.username: 'your-kafka-api-key'
+     sasl.password: 'your-kafka-api-secret'
+     schema_registry_url: 'your-schema-registry-url'
+     schema_registry_api_key: 'your-schema-registry-api-key'
+     schema_registry_secret: 'your-schema-registry-secret'
+     topics:
+       positions: "f1-driver-positions"
+       commentary: "f1-commentary"
+     consumer_group: "f1-leaderboard-consumer"
+   ```
 
-### Key Functionality
+## Part 3: Running the Application
 
-* **Data Fetching:** Fetches leaderboard data from the backend API.
-* **Real-time Updates:** Uses Server-Sent Events for live data streaming.
-* **Data Rendering:** Dynamically generates the leaderboard table with the fetched data.
-* **Driver Highlighting:** Highlights the selected driver in the table.
-* **Loading Indicators:** Shows loading states while fetching data.
-* **Error Handling:** Displays error messages to the user.
-* **Responsive Design:** Uses modern CSS for a responsive layout.
+### Step 3.1: Start the Backend Server
+```bash
+cd backend
+```
+```bash
+source venv/bin/activate
+```
+```bash
+python3 main.py
+```
+> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
 
-## API Endpoints
+### Step 3.2: Start the Frontend Application
+Open a new terminal. Make sure you are in the directory of the repository. Then run the following.
+```bash
+cd frontend
+```
+```bash
+npm run dev
+```
 
-* `/api/health` (GET): Health check endpoint
-* `/api/drivers` (GET): Returns the list of available drivers
-* `/api/positions/stream` (GET): Server-Sent Events stream for real-time position updates
-* `/api/commentary/stream` (GET): Server-Sent Events stream for real-time commentary updates
+> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
 
-## Confluent Cloud (Kafka) Integration
+## Part 4: Implement Flink SQL Analytics
 
-The application integrates with Confluent Cloud for real-time data streaming:
+### Step 4.1: Open SQL Workspace
 
-* **Topics:** 
-    * `f1-driver-positions`: Contains real-time driver position updates with schema validation
-    * `f1-commentary`: Contains AI-generated commentary messages for race events
-* **Schema Registry:** Implements Avro schemas for data validation and evolution
-* **Consumer Groups:** Manages consumer groups for reliable message processing
-* **Error Handling:** Includes comprehensive error handling for Kafka operations
+1. **Navigate to Flink in Confluent Cloud:**
+   - Go to [Flink UI](https://confluent.cloud/go/flink)
+   - Select your environment from the dropdown
 
-## OpenAI API Key Setup
+2. **Open SQL Workspace:**
+   - Click on **Open SQL Workspace** button.
 
-Before using the AI commentary features, you'll need to create an OpenAI API key:
+3. **Configure Catalog and Database:**
+   - In the SQL Workspace, configure the catalog and database settings
+   - Select your environment and Kafka cluster
+   ![](images/catalog_database.png)
 
-1. **Visit OpenAI Platform:**
-   - Go to [https://platform.openai.com/](https://platform.openai.com/)
-   - Sign in to your OpenAI account or create a new one
+### Step 4.2: Realtime Analytics with Confluent Cloud for Apache Flink
 
-2. **Navigate to API Keys:**
-   - Click on your profile icon in the top-right corner
-   - Select "API Keys" from the dropdown menu
+Now that you have the SQL Workspace open, execute the following Flink SQL statements one by one:
 
-3. **Create New API Key:**
-   - Click "Create new secret key"
-   - Enter a name for your API key (e.g., "F1-Leaderboard-App")
-   - Select the appropriate permissions (at minimum, you need access to GPT-3.5-turbo)
-   - Click "Create secret key"
+1. **Create Bedrock Connection:**
+   
+   First, update the AWS credentials in the connection configuration:
+   - Replace `'aws-access-key' = '***'` with your AWS access key
+   - Replace `'aws-secret-key' = '***'` with your AWS secret key
+   - Replace `'aws-session-token' = '***'` with your AWS session token (if using temporary credentials)
 
-4. **Copy and Store Your Key:**
-   - **Important:** Copy the API key immediately as it won't be shown again
-   - Store it securely in your environment variables or configuration
-   - The key will look like: `sk-...` (starts with "sk-")
+   Then execute:
+   ```sql
+   CREATE CONNECTION `bedrock-connection`
+   WITH (
+     'type' = 'BEDROCK',
+     'endpoint' = 'https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-3-5-sonnet-20240620-v1:0/invoke',
+     'aws-access-key' = '***',
+     'aws-secret-key' = '***',
+     'aws-session-token' = '***'
+   );
+   ```
 
+2. **Create Commentary Generator Model:**
+   ```sql
+   CREATE MODEL f1_commentary_generator
+   INPUT (race_context STRING)
+   OUTPUT (commentary STRING)
+   WITH (
+     'bedrock.connection'='bedrock-connection',
+     'provider'='bedrock',
+     'task'='text_generation',
+     'bedrock.params.max_tokens' = '20000'
+   );
+   ```
 
-6. **Add to Flink Configuration:**
-   - Use this API key in the Flink SQL statements below
-   - Replace `'***'` in the connection configuration with your actual API key
-
-> **Note:** Keep your API key secure and never commit it to version control. The F1 Leaderboard App uses GPT-3.5-turbo for generating race commentary.
-
-## Flink SQL Statements
-
-The application includes Apache Flink SQL integration for AI-powered commentary generation:
-
-### Create Commentary Topic
-```sql
-CREATE TABLE `f1-commentary` (
+3. **Create a f1_commentary topic**
+   ```sql
+  CREATE TABLE `f1-commentary` (
     id STRING,
     message STRING,
     `timestamp` BIGINT,
     type STRING
-) WITH (
-    'value.format' = 'json-registry'
-);
-```
+  ) WITH (
+      'value.format' = 'json-registry'
+  );
+  ```
 
-### Create OpenAI Connection
-```sql
-CREATE CONNECTION openai_connection
-WITH (
-  'type' = 'openai',
-  'endpoint' = 'https://api.openai.com/v1/chat/completions',
-  'api-key' = '***'
-);
-```
+3. **Generate Real-Time Commentary:**
+   ```sql
+   INSERT INTO `f1-commentary`
+   SELECT 
+       CONCAT('comment-', CAST(UNIX_TIMESTAMP() AS STRING), '-', REPLACE(driver_name, ' ', '_')) AS id,
+       ai_result.commentary AS message,
+       `timestamp`,
+       CASE 
+           WHEN `position` = 1 THEN 'highlight'
+           WHEN `position` <= 3 THEN 'warning'
+           ELSE 'info'
+       END AS type
+   FROM `f1-driver-positions`,
+   LATERAL TABLE(AGENT('f1_commentary_generator', 
+       CONCAT('Driver: ', driver_name, 
+              ', Position: ', CAST(`position` AS STRING), 
+              '. Generate exciting F1 commentary. Keep it under 80 characters.')
+   )) AS ai_result(commentary);
+   ```
 
-### Create Commentary Generator Model
-```sql
-CREATE MODEL f1_commentary_generator
-INPUT (race_context STRING)
-OUTPUT (commentary STRING)
-WITH (
-  'provider' = 'openai',
-  'openai.connection' = 'openai_connection',
-  'openai.model_version' = 'gpt-3.5-turbo',
-  'openai.system_prompt' = 'You are an expert F1 racing commentator. Generate exciting, engaging commentary about F1 drivers based on their current race position, points, and performance. Keep commentary under 100 characters and make it exciting and dynamic.',
-  'task' = 'text_generation'
-);
-```
+> **Note:** Make sure to replace the AWS credentials placeholders (`***`) with your actual AWS credentials before executing the first SQL statement.
 
-### Generate Commentary
-```sql
-INSERT INTO `f1-commentary`
-SELECT 
-    CONCAT('comment-', CAST(UNIX_TIMESTAMP() AS STRING), '-', REPLACE(driver_name, ' ', '_')) AS id,
-    ai_result.commentary AS message,
-    `timestamp`,
-    CASE 
-        WHEN `position` = 1 THEN 'highlight'
-        WHEN `position` <= 3 THEN 'warning'
-        ELSE 'info'
-    END AS type
-FROM `f1-driver-positions`,
-LATERAL TABLE(AI_COMPLETE('f1_commentary_generator', 
-    CONCAT('Driver: ', driver_name, 
-           ', Position: ', CAST(`position` AS STRING), 
-           '. Generate exciting F1 commentary. Keep it under 80 characters.')
-)) AS ai_result(commentary);
-```
+## Part 6: Car Metrics and Anomaly Detection Setup (Optional)
 
-## How to Use the Application
+This is an optional advanced feature that demonstrates real-time anomaly detection using Confluent Flink's ML_DETECT_ANOMALIES function. The feature is disabled by default and can be enabled via configuration.
 
-Once the application is running, follow these steps to experience the live F1 leaderboard:
+### Step 6.1: Enable Anomaly Detection Feature
 
-1. **Open the Frontend:**
-   - Navigate to `http://localhost:5173` in your web browser
-   - The F1 Live Leaderboard application will load
+1. **Edit `backend/config.yaml`:**
+   ```yaml
+   features:
+     anomaly_detection:
+       enabled: true  # Set to true to enable anomaly detection
+   ```
 
-2. **Choose a Driver:**
-   - On the home page, you'll see a list of available F1 drivers
-   - Click on your favorite driver to select them
-   - This will highlight your chosen driver throughout the race
+2. **Re-run the admin script** to create the required topics:
+   ```bash
+   cd admin
+   ```
+   ```bash
+   source venv/bin/activate
+   ```
+   ```bash
+   python main.py
+   ```
+   
+   This will create:
+   - `f1-car-metrics` topic (for car telemetry data)
+   
+   > **Note:** The `f1-car-metrics-anomalies` topic will be automatically created by Flink when you execute the anomaly detection INSERT statement (see Step 6.2).
 
-3. **Visualize Live Updates:**
-   - The leaderboard will display real-time position updates
-   - Watch as drivers' positions change dynamically
-   - Your selected driver will be highlighted in the standings
+3. **Restart the backend server** to activate the feature:
+   ```bash
+   cd backend
+   ```
+   ```bash
+   source venv/bin/activate
+   ```
+   ```bash
+   python3 main.py
+   ```
 
-4. **View Commentary:**
-   - The commentary panel will show AI-generated race commentary
-   - Commentary updates automatically based on race events
-   - Different types of commentary (highlight, warning, info) provide context
+### Step 6.2: Set Up Flink SQL for Anomaly Detection
 
-5. **Monitor Race Progress:**
-   - Track position changes with visual indicators
-   - See real-time updates without refreshing the page
-   - Experience the excitement of live F1 racing data
+1. **Open SQL Workspace** in Confluent Cloud Flink (same as Part 4)
+   
+   > **Note:** If using explicit connector configuration (not catalog), add full Kafka connector properties as shown in Part 4.
+
+2. **Create sink table for detected anomalies (Flink will auto-create the Kafka topic):**
+   ```sql
+   CREATE TABLE `f1-car-metrics-anomalies` (
+    key STRING,
+    ts TIMESTAMP_LTZ(3),
+    team_name STRING,
+    engine_temperature DOUBLE,
+    is_anomaly BOOLEAN,
+    PRIMARY KEY (key, ts) NOT ENFORCED
+  )
+  DISTRIBUTED BY (key, ts)
+  WITH (
+    'changelog.mode' = 'upsert'
+  );
+   ```
+   
+   > **Note:** Using `changelog.mode = 'append'` because `ML_DETECT_ANOMALIES` in window functions doesn't support retraction. Anomalies are append-only events.
+   
+   > **Note:** The `f1-car-metrics-anomalies` Kafka topic will be automatically created by Flink when you execute the INSERT statement below.
+
+3. **Create simple Flink SQL query for anomaly detection:**
+   ```sql
+    INSERT INTO `f1-car-metrics-anomalies`
+    SELECT
+      CAST(key AS STRING) AS key,
+      TO_TIMESTAMP_LTZ(`timestamp`, 3) AS ts,
+      team_name,
+      engine_temperature,
+      s.anomaly_results[6] AS is_anomaly
+    FROM (
+      SELECT
+        key,
+        team_name,
+        `timestamp`,
+        engine_temperature,
+        ML_DETECT_ANOMALIES(
+          engine_temperature,
+          TO_TIMESTAMP_LTZ(`timestamp`, 3),
+          JSON_OBJECT(
+            'horizon' VALUE 1,
+            'confidencePercentage' VALUE 90.0,
+            'minTrainingSize' VALUE 16
+          )
+        ) OVER (
+          PARTITION BY team_name
+          ORDER BY TO_TIMESTAMP_LTZ(`timestamp`, 3)
+          RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS anomaly_results
+      FROM `f1-car-metrics`
+    ) AS s
+    WHERE s.anomaly_results[6] = TRUE;
+   ```
+   
+
+### Step 6.3: View Anomalies in UI
+
+Once the feature is enabled and Flink queries are running:
+
+1. **Start a race** as described in Part 5
+2. **Watch the Anomaly Detection panel** on the right side of the UI
+3. **Anomalies will appear in real-time** as they are detected by Flink
+4. **Anomalies are color-coded by severity:**
+   - 🔴 Critical: High confidence with extreme values
+   - 🟡 Warning: Medium-high confidence
+   - 🔵 Info: Lower confidence anomalies
+
+### Feature Behavior
+
+- **When enabled**: Car metrics are continuously produced during races, Flink detects anomalies, and they appear in the UI
+- **When disabled**: No car metrics are produced, no Flink queries needed, and the UI shows a message that the feature is disabled
+- **Default**: Feature is disabled (`enabled: false`) for backward compatibility
+
+> **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
+
+## Part 5: Hands-On Lab Exercise
+
+- Select a driver and start a race
+- Watch the race starting animation
+- Monitor live position updates
+- View performance analytics
+- Test race management controls
+- (Optional) If anomaly detection is enabled: Monitor car metrics and detected anomalies in real-time
 
 ## Results
-![](images/result.gif)
-
 ![](images/finished.png)
 
-## Graceful Shutdown
+## Cleanup
 
-Here are the steps to shutdown the application.
+### Stop the Application
+- Stop backend: `Ctrl+C` in backend terminal
+- Stop frontend: `Ctrl+C` in frontend terminal
 
-* Stop running main.py and npm run dev by clicking cmd+c/ctrl-c to stop these programs.
-* Go to Confluent Cloud and delete the topics "f1-driver-positions" and "f1-commentary", then delete the cluster and the environment.
+### Clean Up Confluent Cloud
+
+Before running the teardown script, stop all Flink SQL statements:
+
+1. **Go to Flink SQL Workspace:**
+   - Navigate to your Confluent Cloud console
+   - Go to the Flink SQL Workspace
+   - Stop all running statements
+
+Use the teardown script to automatically delete all resources:
+
+1. **Navigate to admin directory:**
+   ```bash
+   cd admin
+   ```
+
+2. **Activate virtual environment (if not already activated):**
+   ```bash
+   source venv/bin/activate
+   ```
+
+3. **Run the teardown script:**
+   ```bash
+   python teardown.py
+   ```
+
+   This script will automatically:
+   - Delete Schema Registry subjects
+   - Delete Kafka topics
+   - Delete API keys (Kafka and Schema Registry)
+   - Delete Flink compute pool
+   - Delete Kafka cluster
+   - Delete service account
+   - Delete environment
+
+   > **Note:** The script uses the same configuration as `main.py` (environment variables or `admin/config.yaml`). Make sure you have your Confluent Cloud Management API credentials configured.
+
+4. **Verify deletion:**
+   - Check the Confluent Cloud console to confirm all resources have been deleted
+   - Some resources may take a few minutes to fully delete
+
+### Local Cleanup
+```bash
+rm -rf backend/venv
+rm -rf frontend/node_modules
+rm -rf admin/venv
+```
+
+## Resources
+- [Confluent Cloud Documentation](https://docs.confluent.io/cloud/current/)
+- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
+- [Apache Flink Documentation](https://flink.apache.org/docs/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [React Documentation](https://react.dev/)
+
+---
+
+**🎉 Lab Complete!** You've successfully built a real-time F1 analytics application.

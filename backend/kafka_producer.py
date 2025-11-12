@@ -8,7 +8,7 @@ from confluent_kafka.schema_registry.avro import AvroSerializer
 from confluent_kafka.serialization import SerializationContext, MessageField
 from config import config
 from models import DriverPosition, F1_DRIVERS
-from schemas import LEADERBOARD_UPDATE_SCHEMA, SCHEMA_SUBJECTS
+from schemas import LEADERBOARD_UPDATE_SCHEMA
 
 class PositionProducer:
     def __init__(self):
@@ -30,15 +30,30 @@ class PositionProducer:
         )
     
     def _leaderboard_update_to_dict(self, obj, ctx):
-        """Convert LeaderboardUpdate object to dictionary for JSON serialization"""
+        """Convert LeaderboardUpdate object to dictionary for Avro serialization"""
         if obj is None:
             return None
         
+        # Handle timestamp - convert datetime to milliseconds if needed
+        timestamp = obj.get('timestamp')
+        if timestamp is None:
+            timestamp = 0
+        elif hasattr(timestamp, 'timestamp'):
+            # It's a datetime object, convert to milliseconds
+            timestamp = int(timestamp.timestamp() * 1000)
+        elif isinstance(timestamp, (int, float)):
+            # Already a number, ensure it's an integer
+            timestamp = int(timestamp)
+        else:
+            timestamp = 0
+        
         return {
-            "driver_name": obj['driver_name'],
-            "position": obj['position'],
-            "timestamp": int(obj['timestamp'].timestamp() * 1000),  # Convert to milliseconds
-            "race_id": obj.get('race_id')  # Include race_id if present
+            "driver_name": str(obj.get('driver_name', '')),
+            "position": int(obj.get('position', 0)),
+            "timestamp": timestamp,
+            "race_id": obj.get('race_id'),  # Can be None per schema
+            "team_name": obj.get('team_name'),  # Can be None per schema
+            "speed": float(obj.get('speed')) if obj.get('speed') is not None else None  # Can be None per schema
         }
     
     def delivery_callback(self, err, msg):
@@ -68,11 +83,14 @@ class PositionProducer:
             # Send individual position updates
             for pos in positions:
                 # Create leaderboard update data for each driver
+                # Use .get() for optional fields to handle missing keys gracefully
                 update_data = {
-                    "driver_name": pos['driver_name'],
-                    "position": pos['position'],
-                    "timestamp": pos['timestamp'],
-                    "race_id": race_id
+                    "driver_name": pos.get('driver_name', ''),
+                    "position": pos.get('position', 0),
+                    "timestamp": pos.get('timestamp'),
+                    "race_id": race_id,
+                    "team_name": pos.get('team_name'),  # Can be None
+                    "speed": pos.get('speed')  # Can be None
                 }
                 
                 # Serialize using Avro
@@ -93,7 +111,6 @@ class PositionProducer:
             self.producer.flush()
             
             position_summary = [f"{pos['driver_name']}: P{pos['position']}" for pos in positions]
-            print(f"Produced race {race_id} positions: {position_summary}")
             
         except Exception as e:
             print(f"Error producing race positions for {race_id}: {e}")

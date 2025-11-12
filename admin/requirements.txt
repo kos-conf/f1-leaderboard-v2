@@ -1,0 +1,11 @@
+# Confluent Admin Infrastructure Setup Dependencies
+
+# Confluent Kafka Admin and Schema Registry
+confluent-kafka[schema-registry]>=2.11.1,<3.0.0
+
+# HTTP requests for Confluent Cloud Management API
+requests>=2.31.0,<3.0.0
+
+# YAML configuration parsing
+pyyaml>=6.0.1,<7.0.0
+

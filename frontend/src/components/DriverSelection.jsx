@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const DriverSelection = ({ onDriverSelect, selectedDriver, isStartingRace }) => {
+const DriverSelection = ({ onDriverSelect, selectedDriver, isStartingRace, isRaceFinished, raceId, onViewAnomalies }) => {
   const [drivers, setDrivers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -77,6 +77,18 @@ const DriverSelection = ({ onDriverSelect, selectedDriver, isStartingRace }) => 
       {selectedDriver && (
         <div className="selected-driver-info">
           <p>Following: <strong>{selectedDriver.name}</strong> from {selectedDriver.team}</p>
+        </div>
+      )}
+      
+      {isRaceFinished && raceId && (
+        <div className="anomalies-button-container">
+          <button 
+            className="view-anomalies-button"
+            onClick={onViewAnomalies}
+          >
+            <span className="anomaly-icon">⚠️</span>
+            View Anomalies
+          </button>
         </div>
       )}
     </div>

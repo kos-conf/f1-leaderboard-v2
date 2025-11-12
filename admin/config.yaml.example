@@ -1,0 +1,20 @@
+# Confluent Cloud Management API Configuration
+# Copy this file to config.yaml and fill in your credentials
+# 
+# To get your Confluent Cloud Management API credentials:
+# 1. Go to https://confluent.cloud
+# 2. Navigate to API Keys in the account settings
+# 3. Create a new API key with permissions to create environments, clusters, and Flink compute pools
+# 4. Copy the key and secret here
+
+cloud_api_key: "<YOUR_CONFLUENT_CLOUD_API_KEY>"
+cloud_api_secret: "<YOUR_CONFLUENT_CLOUD_API_SECRET>"
+
+# Optional: Override default resource names
+# environment_name: "f1-leaderboard-env"
+# kafka_cluster_name: "f1-leaderboard-cluster"
+# flink_pool_name: "f1-leaderboard-flink-pool"
+# cloud_provider: "aws"
+# region: "us-east-2"
+# flink_max_cfu: 5
+

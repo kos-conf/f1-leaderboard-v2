@@ -95,7 +95,7 @@ const CommentaryPanel = ({ selectedDriver, onCommentaryReceived, isRaceFinished 
         </h3>
         <div className="connection-status">
           <span className={`status-indicator ${commentaryConnected ? 'connected' : 'disconnected'}`}>
-            {commentaryConnected ? '● Online' : '● Offline'}
+            {commentaryConnected ? 'ONLINE' : 'OFFLINE'}
           </span>
         </div>
       </div>
