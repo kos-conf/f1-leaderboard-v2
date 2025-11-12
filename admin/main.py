@@ -90,15 +90,41 @@ class ConfluentCloudManager:
             return None
     
     def _find_environment_by_name(self, name: str) -> Optional[str]:
-        """Find environment by name"""
+        """Find environment by name with pagination support"""
         url = f"{self.BASE_URL}/org/v2/environments"
         try:
+            page_size = 100
+            page_token = None
+            
+            while True:
+                params = {"page_size": page_size}
+                if page_token:
+                    params["page_token"] = page_token
+                
+                response = requests.get(url, headers=self.headers, params=params)
+                if response.status_code == 200:
+                    data = response.json()
+                    environments = data.get('data', [])
+                    
+                    for env in environments:
+                        if env.get('display_name') == name:
+                            return env['id']
+                    
+                    # Check if there are more pages
+                    metadata = data.get('metadata', {})
+                    next_page_token = metadata.get('next', {}).get('page_token')
+                    if not next_page_token:
+                        break
+                    page_token = next_page_token
+                else:
+                    # If pagination fails, try without pagination as fallback
             response = requests.get(url, headers=self.headers)
             if response.status_code == 200:
                 environments = response.json().get('data', [])
                 for env in environments:
                     if env.get('display_name') == name:
                         return env['id']
+                    break
         except Exception as e:
             print(f"⚠️  Error searching for environment: {e}")
         return None
@@ -573,7 +599,7 @@ class ConfluentCloudManager:
             return False
     
     def list_api_keys_for_service_account(self, service_account_id: str) -> list:
-        """List all API keys owned by a service account"""
+        """List all API keys owned by a service account with pagination support"""
         url = f"{self.BASE_URL}/iam/v2/api-keys"
         api_keys = []
         
@@ -586,13 +612,41 @@ class ConfluentCloudManager:
             ]
             
             for owner_format in owner_formats:
-                params = {"owner": owner_format}
+                page_size = 100
+                page_token = None
+                found_keys = False
+                
+                while True:
+                    params = {"owner": owner_format, "page_size": page_size}
+                    if page_token:
+                        params["page_token"] = page_token
+                    
                 response = requests.get(url, headers=self.headers, params=params)
                 if response.status_code == 200:
                     data = response.json()
                     keys = data.get('data', [])
                     if keys:
-                        api_keys = keys
+                            api_keys.extend(keys)
+                            found_keys = True
+                        
+                        # Check if there are more pages
+                        metadata = data.get('metadata', {})
+                        next_page_token = metadata.get('next', {}).get('page_token')
+                        if not next_page_token:
+                            break
+                        page_token = next_page_token
+                    else:
+                        # If pagination fails, try without pagination as fallback
+                        params_fallback = {"owner": owner_format}
+                        response_fallback = requests.get(url, headers=self.headers, params=params_fallback)
+                        if response_fallback.status_code == 200:
+                            keys = response_fallback.json().get('data', [])
+                            if keys:
+                                api_keys.extend(keys)
+                                found_keys = True
+                        break
+                
+                if found_keys:
                         break
         except Exception as e:
             print(f"⚠️  Error listing API keys: {e}")
@@ -930,38 +984,26 @@ class SchemaRegistryAdmin:
         self.client = SchemaRegistryClient(schema_registry_config)
         self.config = schema_registry_config
     
-    def register_schema(self, subject: str, schema_dict: dict, schema_type: str = "AVRO") -> bool:
-        """Register a schema with Schema Registry"""
+    def register_schema(self, subject: str, schema_dict: dict, schema_type: str = "AVRO") -> Optional[int]:
+        """Register a schema with Schema Registry and return the schema ID"""
         try:
             schema_str = json.dumps(schema_dict)
             schema = Schema(schema_str, schema_type=schema_type)
             schema_id = self.client.register_schema(subject_name=subject, schema=schema)
-            print(f"✅ Schema registered for subject '{subject}' with ID: {schema_id}")
-            
-            # Verify the schema was registered by retrieving it
-            try:
-                registered_schema = self.client.get_latest_version(subject)
-                print(f"   ✅ Verified: Schema exists and is accessible")
-                print(f"   📋 Schema version: {registered_schema.version}, ID: {registered_schema.schema_id}")
-                return True
-            except Exception as verify_error:
-                print(f"   ⚠️  Schema registered but verification failed: {verify_error}")
-                print(f"   💡 The schema may still be available. Check Confluent Cloud UI to confirm.")
-                return True  # Still return True as registration succeeded
+            print(f"✅ Schema registered: {subject} (ID: {schema_id})")
+            return schema_id
         except Exception as e:
             error_str = str(e).lower()
             if "already exists" in error_str or "subject already exists" in error_str:
-                print(f"⚠️  Schema for subject '{subject}' already exists")
-                # Try to get the existing schema to verify
                 try:
                     registered_schema = self.client.get_latest_version(subject)
-                    print(f"   ✅ Verified existing schema: version {registered_schema.version}, ID: {registered_schema.schema_id}")
+                    print(f"✅ Schema already exists: {subject} (ID: {registered_schema.schema_id})")
+                    return registered_schema.schema_id
                 except:
-                    pass
-                return True
+                    return None
             else:
-                print(f"❌ Failed to register schema for subject '{subject}': {e}")
-                return False
+                print(f"❌ Failed to register schema for {subject}: {e}")
+                return None
 
 
 def load_config(config_path: str = None) -> Dict[str, Any]:
@@ -1188,8 +1230,15 @@ def main():
     except:
         pass
     
-    # Get cluster details to extract bootstrap servers if not in config
+    # Check if bootstrap_servers is a placeholder and treat it as None
+    PLACEHOLDER_BOOTSTRAP = "BOOTSTRAP_SERVER_URL_FROM_API_KEY_FILE"
+    if bootstrap_servers == PLACEHOLDER_BOOTSTRAP:
+        print(f"   ⚠️  Found placeholder '{PLACEHOLDER_BOOTSTRAP}' in config, will fetch actual bootstrap servers from cluster API")
+        bootstrap_servers = None
+    
+    # Get cluster details to extract bootstrap servers if not in config or is placeholder
     if not bootstrap_servers:
+        print("   Getting bootstrap servers from cluster API...")
         cluster_details_url = f"{cloud_manager.BASE_URL}/cmk/v2/clusters/{cluster_id}"
         cluster_params = {"environment": env_id}
         try:
@@ -1197,6 +1246,12 @@ def main():
             if cluster_response.status_code == 200:
                 cluster_data = cluster_response.json()
                 bootstrap_servers = cluster_data.get('spec', {}).get('kafka_bootstrap_endpoint', '').replace('SASL_SSL://', '')
+                if bootstrap_servers:
+                    print(f"   ✅ Retrieved bootstrap servers from cluster API: {bootstrap_servers}")
+                else:
+                    print(f"   ⚠️  Bootstrap endpoint not found in cluster response")
+            else:
+                print(f"   ⚠️  Failed to get cluster details: {cluster_response.status_code} - {cluster_response.text}")
         except Exception as e:
             print(f"⚠️  Error getting cluster details: {e}")
     
@@ -1383,10 +1438,15 @@ def main():
         admin_kafka_config = {}
         
         # Get bootstrap servers (from config or cluster details)
+        # Check for placeholder in config as well
+        config_bootstrap = config.get('kafka', {}).get('bootstrap.servers')
+        if config_bootstrap == PLACEHOLDER_BOOTSTRAP:
+            config_bootstrap = None
+        
         if bootstrap_servers:
             admin_kafka_config['bootstrap.servers'] = bootstrap_servers
-        elif config.get('kafka', {}).get('bootstrap.servers'):
-            admin_kafka_config['bootstrap.servers'] = config['kafka']['bootstrap.servers']
+        elif config_bootstrap:
+            admin_kafka_config['bootstrap.servers'] = config_bootstrap
         else:
             print("   ⚠️  bootstrap.servers not found")
         
@@ -1405,6 +1465,9 @@ def main():
         # Add required security settings
         admin_kafka_config['security.protocol'] = config.get('kafka', {}).get('security.protocol', 'SASL_SSL')
         admin_kafka_config['sasl.mechanism'] = config.get('kafka', {}).get('sasl.mechanism', 'PLAIN')
+        
+        # Suppress librdkafka logs (connection disconnection messages)
+        admin_kafka_config['log_level'] = 0  # 0 = emerg (suppress all logs)
         
         # Get topic names (positions topic, and optionally car metrics topics)
         topic_names = [config['kafka']['topics']['positions']]
@@ -1458,6 +1521,34 @@ def main():
         else:
             print("⚠️  Skipping topic creation - Kafka credentials not available")
             print("   Please ensure Kafka API keys were created in Step 5 or backend/config.yaml has bootstrap.servers, sasl.username, and sasl.password")
+        print()
+        
+        # Step 7: Register Data Contracts (Schemas)
+        print("Step 7: Registering Data Contracts (Schemas)...")
+        if schema_registry_url and sr_api_key and sr_api_secret:
+            try:
+                schema_registry_config = {
+                    'url': schema_registry_url,
+                    'basic.auth.user.info': f"{sr_api_key}:{sr_api_secret}"
+                }
+                schema_admin = SchemaRegistryAdmin(schema_registry_config)
+                
+                # Register schema for f1-driver-positions topic
+                positions_topic = config['kafka']['topics']['positions']
+                positions_subject = f"{positions_topic}-value"
+                schema_admin.register_schema(positions_subject, LEADERBOARD_UPDATE_SCHEMA, schema_type="AVRO")
+                
+                # Register schema for f1-car-metrics topic if anomaly detection is enabled
+                if anomaly_detection_enabled and 'car_metrics' in config['kafka']['topics']:
+                    car_metrics_topic = config['kafka']['topics']['car_metrics']
+                    car_metrics_subject = f"{car_metrics_topic}-value"
+                    schema_admin.register_schema(car_metrics_subject, CAR_METRICS_SCHEMA, schema_type="AVRO")
+                
+                print("✅ Data contracts registered successfully")
+            except Exception as e:
+                print(f"❌ Error registering data contracts: {e}")
+        else:
+            print("⚠️  Skipping data contract registration - Schema Registry credentials not available")
         print()
         
     except FileNotFoundError as e:
