@@ -15,4 +15,4 @@ kafka:
   consumer_group: f1-leaderboard-consumer
 features:
   anomaly_detection:
-    enabled: true
+    enabled: false
