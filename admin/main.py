@@ -118,13 +118,13 @@ class ConfluentCloudManager:
                     page_token = next_page_token
                 else:
                     # If pagination fails, try without pagination as fallback
-            response = requests.get(url, headers=self.headers)
-            if response.status_code == 200:
-                environments = response.json().get('data', [])
-                for env in environments:
-                    if env.get('display_name') == name:
-                        return env['id']
-                    break
+                    response = requests.get(url, headers=self.headers)
+                    if response.status_code == 200:
+                        environments = response.json().get('data', [])
+                        for env in environments:
+                            if env.get('display_name') == name:
+                                return env['id']
+                            break
         except Exception as e:
             print(f"⚠️  Error searching for environment: {e}")
         return None
@@ -621,33 +621,33 @@ class ConfluentCloudManager:
                     if page_token:
                         params["page_token"] = page_token
                     
-                response = requests.get(url, headers=self.headers, params=params)
-                if response.status_code == 200:
-                    data = response.json()
-                    keys = data.get('data', [])
-                    if keys:
+                    response = requests.get(url, headers=self.headers, params=params)
+                    if response.status_code == 200:
+                        data = response.json()
+                        keys = data.get('data', [])
+                        if keys:
                             api_keys.extend(keys)
                             found_keys = True
                         
-                        # Check if there are more pages
-                        metadata = data.get('metadata', {})
-                        next_page_token = metadata.get('next', {}).get('page_token')
-                        if not next_page_token:
+                            # Check if there are more pages
+                            metadata = data.get('metadata', {})
+                            next_page_token = metadata.get('next', {}).get('page_token')
+                            if not next_page_token:
+                                break
+                            page_token = next_page_token
+                        else:
+                            # If pagination fails, try without pagination as fallback
+                            params_fallback = {"owner": owner_format}
+                            response_fallback = requests.get(url, headers=self.headers, params=params_fallback)
+                            if response_fallback.status_code == 200:
+                                keys = response_fallback.json().get('data', [])
+                                if keys:
+                                    api_keys.extend(keys)
+                                    found_keys = True
                             break
-                        page_token = next_page_token
-                    else:
-                        # If pagination fails, try without pagination as fallback
-                        params_fallback = {"owner": owner_format}
-                        response_fallback = requests.get(url, headers=self.headers, params=params_fallback)
-                        if response_fallback.status_code == 200:
-                            keys = response_fallback.json().get('data', [])
-                            if keys:
-                                api_keys.extend(keys)
-                                found_keys = True
-                        break
-                
-                if found_keys:
-                        break
+                    
+                    if found_keys:
+                            break
         except Exception as e:
             print(f"⚠️  Error listing API keys: {e}")
         
