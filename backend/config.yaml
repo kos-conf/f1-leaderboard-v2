@@ -9,7 +9,7 @@ kafka:
   schema_registry_secret: 'YOUR_SCHEMA_REGISTRY_SECRET'
   topics:
     positions: f1-driver-positions
-    commentary: f1_commentary
+    commentary: f1-commentary
     car_metrics: f1-car-metrics
     car_metrics_anomalies: f1-car-metrics-anomalies
   consumer_group: f1-leaderboard-consumer
