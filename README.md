@@ -510,6 +510,156 @@ Once the feature is enabled and Flink queries are running:
 
 > **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
 
+<details>
+<summary><b>Part 7: Vector Search Against Vector Database (Optional)</b></summary>
+
+This is an optional advanced feature that demonstrates how to perform vector search operations against a MongoDB vector database using Confluent Cloud for Apache Flink. You'll learn how to create embeddings from search queries and perform similarity searches.
+
+### Step 7.1: Create MongoDB Connection
+
+1. **Navigate to Connections in Confluent Cloud:**
+   - Go to [Manage Connections](https://docs.confluent.io/cloud/current/integrations/connections/manage-connections.html#create-a-connection)
+   - Click **Create Connection**
+   - Select **MongoDB** as the connection type
+   - Configure your MongoDB connection details (host, port, database, credentials)
+   - Save the connection and note the connection name (e.g., `mongodb-connection-23eb1bdb-a806-4db3-a50e-820271af1a89`)
+
+   > **Note:** Replace the connection name in the SQL statements below with your actual MongoDB connection name.
+
+### Step 7.2: Create OpenAI Embedding Connection
+
+1. **Open SQL Workspace** in Confluent Cloud Flink (same as Part 3)
+
+2. **Create OpenAI connection for embeddings:**
+   
+   First, update the API key in the connection configuration:
+   - Replace `'api-key' = '*****'` with your OpenAI API key
+
+   Then execute:
+   ```sql
+   CREATE CONNECTION openai_embedding_connection
+   WITH (
+     'type' = 'openai',
+     'endpoint' = 'https://api.openai.com/v1/embeddings',
+     'api-key' = '*****'
+   );
+   ```
+
+   > **Note:** Make sure to replace the API key placeholder (`*****`) with your actual OpenAI API key before executing.
+
+### Step 7.3: Create Embedding Model
+
+Create a model to generate embeddings from text input:
+
+```sql
+CREATE MODEL plot_embed
+INPUT (input STRING)
+OUTPUT (embedding ARRAY<FLOAT>)
+WITH (
+  'provider' = 'openai',
+  'task' = 'embedding',
+  'openai.connection' = 'openai_embedding_connection'
+);
+```
+
+### Step 7.4: Create External MongoDB Table
+
+Create an external table that references your MongoDB collection with vector embeddings:
+
+```sql
+CREATE TABLE mongodb_movies (
+  title STRING,
+  plot STRING,
+  plot_embedding ARRAY<FLOAT>
+) WITH (
+  'connector' = 'mongodb',
+  'mongodb.connection' = 'mongodb-connection-23eb1bdb-a806-4db3-a50e-820271af1a89',
+  'mongodb.database' = 'sample_mflix',
+  'mongodb.collection' = 'embedded_movies',
+  'mongodb.index' = 'vector_index',
+  'mongodb.numcandidates' = '100'
+);
+```
+
+> **Note:** Replace `'mongodb-connection-23eb1bdb-a806-4db3-a50e-820271af1a89'` with your actual MongoDB connection name from Step 7.1. Also ensure your MongoDB collection has a vector index configured.
+
+### Step 7.5: Create Search Query Tables
+
+Create tables to store search queries and their vector embeddings:
+
+1. **Create table for search queries:**
+   ```sql
+   CREATE TABLE movie_plot_queries (plot STRING);
+   ```
+
+2. **Insert sample search query:**
+   ```sql
+   INSERT INTO movie_plot_queries VALUES
+   ('A major countermands orders and attacks to revenge a previous massacre of men, women and children.');
+   ```
+
+3. **Create table to store query vectors:**
+   ```sql
+   CREATE TABLE movie_plot_vectors (plot STRING, vector ARRAY<FLOAT>);
+   ```
+
+### Step 7.6: Generate Embeddings for Search Queries
+
+Generate vector embeddings for the search queries using the embedding model:
+
+```sql
+INSERT INTO movie_plot_vectors
+SELECT plot, embedding
+FROM movie_plot_queries,
+LATERAL TABLE(ML_PREDICT('plot_embed', plot));
+```
+
+### Step 7.7: Create Result Table and Perform Vector Search
+
+1. **Create table to store vector search results:**
+   ```sql
+   CREATE TABLE movies_vector_search_result (
+     plot STRING,
+     search_results ARRAY<ROW<title STRING, plot STRING, plot_embedding ARRAY<FLOAT>, score DOUBLE>>
+   );
+   ```
+
+2. **Perform vector search operation:**
+   ```sql
+   INSERT INTO movies_vector_search_result
+   SELECT *
+   FROM movie_plot_vectors q,
+   LATERAL TABLE(
+     VECTOR_SEARCH_AGG(mongodb_movies, DESCRIPTOR(plot_embedding), q.vector, 5)
+   );
+   ```
+
+   This query performs a vector similarity search, finding the top 5 most similar movie plots in MongoDB based on the query embedding.
+
+### Step 7.8: View Search Results
+
+Query the results to see the matched movies with their similarity scores:
+
+```sql
+SELECT
+  mv.plot AS query_plot,
+  r.plot,
+  r.title,
+  r.score
+FROM movies_vector_search_result AS mv
+CROSS JOIN UNNEST(search_results) AS r(title, plot, plot_embedding, score);
+```
+
+This will display:
+- The original search query plot
+- Matched movie titles from MongoDB
+- Matched movie plots
+- Similarity scores (higher scores indicate better matches)
+
+> **Note:** The vector search uses cosine similarity to find the most relevant matches. Ensure your MongoDB collection has documents with pre-computed `plot_embedding` vectors and a vector index configured for optimal performance.
+
+</details>
+
 ## Results
 ![](images/finished.png)
 
