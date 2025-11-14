@@ -729,6 +729,7 @@ class ConfluentCloudManager:
                 api_secret = data.get('spec', {}).get('secret')
                 if api_key and api_secret:
                     print(f"✅ Kafka API key created: {api_key}")
+                    time.sleep(20)
                     return (api_key, api_secret)
                 else:
                     print(f"⚠️  API key created but secret not in response. Key ID: {api_key}")

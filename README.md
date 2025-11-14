@@ -57,7 +57,9 @@ To deploy infrastructure programmatically, you need Confluent Cloud Management A
 4. Provide name and description (Optional) and click next
 5. Download API key and click **Complete**
 
-### Step 1.3: Configure Credentials
+### Step 1.3: Update the Provided PROMOCODE using [this](https://confluent.cloud/settings/billing/payment) link
+
+### Step 1.4: Configure Credentials
 
 1. **Clone the repository:**
    ```bash
@@ -93,6 +95,9 @@ To deploy infrastructure programmatically, you need Confluent Cloud Management A
 We provide automated setup scripts that handle all the setup steps for you:
 
 **macOS/Linux:**
+```bash
+chmod +x setup.sh
+```
 ```bash
 ./setup.sh
 ```
@@ -333,7 +338,7 @@ Now that you have the SQL Workspace open, execute the following Flink SQL statem
            ELSE 'info'
        END AS type
    FROM `f1-driver-positions`,
-   LATERAL TABLE(AGENT('f1_commentary_generator', 
+   LATERAL TABLE(AI_COMPLETE('f1_commentary_generator', 
        CONCAT('Driver: ', driver_name, 
               ', Position: ', CAST(`position` AS STRING), 
               '. Generate exciting F1 commentary. Keep it under 80 characters.')
@@ -367,6 +372,9 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
    ```bash
    python main.py
    ```
+   ```bash
+   cd ..
+   ```
    
    **Windows:**
    ```powershell
@@ -377,6 +385,9 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
    ```
    ```powershell
    python main.py
+   ```
+   ```powershell
+   cd ..
    ```
    
    This will create:
@@ -442,22 +453,6 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
     WHERE s.anomaly_results[6] = TRUE;
    ```
 
-### Step 4.3: View Anomalies in UI
-
-Once the feature is enabled and Flink queries are running:
-
-1. **Start a race** from the frontend application
-2. **Click on the View Anomalies button** on the right bottom of the screen at anytime
-3. **Anomalies will appear in real-time** as they are detected by Flink
-
-### Feature Behavior
-
-- **When enabled**: Car metrics are continuously produced during races, Flink detects anomalies, and they appear in the UI
-- **When disabled**: No car metrics are produced, no Flink queries needed, and the UI shows a message that the feature is disabled
-- **Default**: Feature is disabled (`enabled: false`) for backward compatibility
-
-> **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
-
 ## Part 5: Running the Application
 
 Now that all Flink SQL statements (including optional anomaly detection) are set up, start the backend and frontend servers:
@@ -499,103 +494,21 @@ npm run dev
 
 > **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
 
-## Part 7: Vector Search with MongoDB (Optional)
+### Step 5.3: View Anomalies in UI
 
-This optional section demonstrates semantic vector search using MongoDB Atlas and Amazon Bedrock embeddings. This allows you to search F1 race commentary and driver information using natural language queries.
+Once the feature is enabled and Flink queries are running:
 
-### Prerequisites
+1. **Start a race** from the (frontend)[http://localhost:5173] application
+2. **Click on the View Anomalies button** on the right bottom of the screen at anytime
+3. **Anomalies will appear in real-time** as they are detected by Flink
 
-- MongoDB Atlas cluster with a collection containing text data and embeddings
-- Amazon Bedrock access with embedding model permissions
-- MongoDB API key for authentication
+### Feature Behavior
 
-### Step 7.1: Set Up Vector Search
+- **When enabled**: Car metrics are continuously produced during races, Flink detects anomalies, and they appear in the UI
+- **When disabled**: No car metrics are produced, no Flink queries needed, and the UI shows a message that the feature is disabled
+- **Default**: Feature is disabled (`enabled: false`) for backward compatibility
 
-1. **Create Amazon Bedrock connection for embeddings:**
-   ```sql
-   CREATE CONNECTION bedrock_embedding_connection
-   WITH (
-     'type' = 'bedrock',
-     'endpoint' = 'https://bedrock-runtime.us-east-1.amazonaws.com/model/us.amazon.titan-embed-text-v1:0',
-     'aws-access-key' = '<YOUR_AWS_ACCESS_KEY>',
-     'aws-secret-key' = '<YOUR_AWS_SECRET_KEY>',
-     'aws-session-token' = '<YOUR_AWS_SESSION_TOKEN>'
-   );
-   ```
-
-2. **Create embedding model:**
-   ```sql
-   CREATE MODEL f1_embedding_model
-   INPUT (text STRING)
-   OUTPUT (response ARRAY<FLOAT>)
-   WITH (
-      'bedrock.connection'='bedrock_embedding_connection',
-      'bedrock.input_format'='AMAZON-TITAN-EMBED',
-      'provider'='bedrock',
-      'task'='embedding'
-   );
-   ```
-
-3. **Create MongoDB connection:**
-   ```sql
-   CREATE CONNECTION mongodb_connection
-   WITH (
-     'type' = 'mongodb',
-     'endpoint' = '<YOUR_MONGODB_ATLAS_ENDPOINT>',
-     'username' = '<YOUR_MONGODB_USERNAME>',
-     'password' = '<YOUR_MONGODB_PASSWORD>'
-   );
-   ```
-
-4. **Create MongoDB external table:**
-   ```sql
-   CREATE TABLE f1_mongodb_search (
-     commentary_text STRING,
-     driver_name STRING,
-     race_context STRING,
-     embedding_vector ARRAY<FLOAT>
-   ) WITH (
-     'connector' = 'mongodb',
-     'mongodb.connection' = 'mongodb_connection',
-     'mongodb.database' = 'f1_leaderboard',
-     'mongodb.collection' = 'race_commentary',
-     'mongodb.index' = 'idx_embedding_vector',
-     'mongodb.numcandidates' = '100'
-   );
-   ```
-
-5. **Create input table and generate embeddings:**
-   ```sql
-   CREATE TABLE search_query (query_text STRING);
-   CREATE TABLE query_embeddings (query_text STRING, embedding ARRAY<FLOAT>);
-   
-   INSERT INTO search_query VALUES ('Which driver had the fastest lap?');
-   INSERT INTO query_embeddings 
-   SELECT query_text, embedding 
-   FROM search_query,
-   LATERAL TABLE(ML_PREDICT('f1_embedding_model', query_text)) AS e(embedding);
-   ```
-
-6. **Perform semantic vector search:**
-   ```sql
-   SELECT 
-     driver_name,
-     commentary_text,
-     race_context,
-     score
-   FROM query_embeddings,
-   LATERAL TABLE(VECTOR_SEARCH_AGG(
-     f1_mongodb_search, 
-     DESCRIPTOR(embedding_vector), 
-     embedding, 
-     5
-   )) AS results(commentary_text, driver_name, race_context, score)
-   ORDER BY score DESC;
-   ```
-
-> **Note:** Replace the placeholder values (`<YOUR_AWS_ACCESS_KEY>`, `<YOUR_MONGODB_ATLAS_ENDPOINT>`, etc.) with your actual credentials. The MongoDB collection should contain commentary text with pre-computed embeddings in the `embedding_vector` field.
-
-> **Reference:** For more details on vector search with MongoDB, see the [Confluent Cloud documentation](https://docs.confluent.io/cloud/current/ai/external-tables/vector-search.html#vector-database-search-with-mongodb).
+> **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
 
 ## Results
 ![](images/finished.png)
