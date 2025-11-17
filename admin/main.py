@@ -3,8 +3,8 @@ Confluent Admin Infrastructure Setup Script
 
 This script creates the complete Confluent Cloud infrastructure:
 - Environment
-- Kafka Cluster (Basic) in us-east-2
-- Flink Compute Pool in us-east-2
+- Kafka Cluster (Basic) in us-east-1
+- Flink Compute Pool in us-east-1
 - Kafka Topic: f1-driver-positions
 """
 
@@ -1150,7 +1150,7 @@ def main():
     region = (
         os.getenv('CONFLUENT_REGION') or 
         admin_config.get('region') or 
-        'us-east-2'
+        'us-east-1'
     )
     max_cfu = int(
         os.getenv('CONFLUENT_FLINK_MAX_CFU') or 
