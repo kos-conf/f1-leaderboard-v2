@@ -262,8 +262,9 @@ cd ..
 
 </details>
 
-## Part 3: Implement Flink SQL Analytics
-
+## Part 3: Implement Flink Model Inference
+In this section, you will using Flink Model Inference and Amazon Bedrock to generate commentary regarding the ongoing race.
+![Architecture for LLM generated commentary](images/commentary.png)
 ### Step 3.1: Open SQL Workspace
 
 1. **Navigate to Flink in Confluent Cloud:**
@@ -393,6 +394,8 @@ npm run dev
 
 This is an optional advanced feature that demonstrates real-time anomaly detection using Confluent Flink's ML_DETECT_ANOMALIES function. The feature is enabled by default and can be disabled via config.yaml found in the `backend` directory.
 
+![Architecture for anomaly detection](images/anomaly.png)
+
 ### Step 5.1: Set Up Flink SQL for Anomaly Detection
 
 1. **Open SQL Workspace** in Confluent Cloud Flink (same as Part 3)
@@ -475,6 +478,7 @@ Once Flink queries are running:
 
 
 This is an optional advanced feature that demonstrates how to perform vector search operations against a MongoDB vector database using Confluent Cloud for Apache Flink. You'll learn how to create embeddings from search queries and perform similarity searches. 
+![Architecture for anomaly detection](images/embedding.png)
 
 ### Prerequisites
 1. Your own [MongoDB account](https://www.mongodb.com/lp/cloud/atlas/try4-reg)
