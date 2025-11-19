@@ -347,55 +347,53 @@ Now that you have the SQL Workspace open, execute the following Flink SQL statem
 
 > **Note:** Make sure to replace the AWS credentials placeholders (`***`) with your actual AWS credentials before executing the first SQL statement.
 
-## Part 4: Car Metrics and Anomaly Detection Setup (Optional)
+## Part 4: Running the Application
 
-This is an optional advanced feature that demonstrates real-time anomaly detection using Confluent Flink's ML_DETECT_ANOMALIES function. The feature is disabled by default and can be enabled via configuration.
+Now that all Flink SQL statements (including optional anomaly detection) are set up, start the backend and frontend servers:
 
-### Step 4.1: Enable Anomaly Detection Feature
+### Step 4.1: Start the Backend Server
 
-1. **Edit `backend/config.yaml`:**
-   ```yaml
-   features:
-     anomaly_detection:
-       enabled: true  # Set to true to enable anomaly detection
-   ```
+**macOS/Linux:**
+```bash
+cd backend
+```
+```bash
+source venv/bin/activate
+```
+```bash
+python3 main.py
+```
 
-2. **Re-run the admin script** to create the required topics:
-   
-   **macOS/Linux:**
-   ```bash
-   cd admin
-   ```
-   ```bash
-   source venv/bin/activate
-   ```
-   ```bash
-   python main.py
-   ```
-   ```bash
-   cd ..
-   ```
-   
-   **Windows:**
-   ```powershell
-   cd admin
-   ```
-   ```powershell   
-   venv\Scripts\Activate.ps1
-   ```
-   ```powershell
-   python main.py
-   ```
-   ```powershell
-   cd ..
-   ```
-   
-   This will create:
-   - `f1-car-metrics` topic (for car telemetry data)
-   
-   > **Note:** The `f1-car-metrics-anomalies` topic will be automatically created by Flink when you execute the anomaly detection INSERT statement (see Step 4.2).
-   
-### Step 4.2: Set Up Flink SQL for Anomaly Detection
+**Windows:**
+```powershell
+cd backend
+```
+```powershell
+venv\Scripts\Activate.ps1
+```
+```powershell
+python main.py
+```
+
+> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
+
+### Step 4.2: Start the Frontend Application
+Open a new terminal. Make sure you are in the directory of the repository. Then run the following.
+```bash
+cd frontend
+```
+```bash
+npm run dev
+```
+
+> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
+
+
+## Part 5: Car Metrics and Anomaly Detection Setup 
+
+This is an optional advanced feature that demonstrates real-time anomaly detection using Confluent Flink's ML_DETECT_ANOMALIES function. The feature is enabled by default and can be disabled via config.yaml found in the `backend` directory.
+
+### Step 5.1: Set Up Flink SQL for Anomaly Detection
 
 1. **Open SQL Workspace** in Confluent Cloud Flink (same as Part 3)
 
@@ -453,54 +451,16 @@ This is an optional advanced feature that demonstrates real-time anomaly detecti
     WHERE s.anomaly_results[6] = TRUE;
    ```
 
-## Part 5: Running the Application
 
-Now that all Flink SQL statements (including optional anomaly detection) are set up, start the backend and frontend servers:
 
-### Step 5.1: Start the Backend Server
+### Step 5.2: View Anomalies in UI
 
-**macOS/Linux:**
-```bash
-cd backend
-```
-```bash
-source venv/bin/activate
-```
-```bash
-python3 main.py
-```
+Once Flink queries are running:
 
-**Windows:**
-```powershell
-cd backend
-```
-```powershell
-venv\Scripts\Activate.ps1
-```
-```powershell
-python main.py
-```
-
-> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
-
-### Step 5.2: Start the Frontend Application
-Open a new terminal. Make sure you are in the directory of the repository. Then run the following.
-```bash
-cd frontend
-```
-```bash
-npm run dev
-```
-
-> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
-
-### Step 5.3: View Anomalies in UI
-
-Once the feature is enabled and Flink queries are running:
-
+1. **Restart the Backend Server**. You can do this by pressing `CTRL+C` where you have your backend running. Then run the  `python3 main.py` again.
 1. **Start a race** from the (frontend)[http://localhost:5173] application
-2. **Click on the View Anomalies button** on the right bottom of the screen at anytime
-3. **Anomalies will appear in real-time** as they are detected by Flink
+1. **Click on the View Anomalies button** on the right bottom of the screen at anytime
+13. **Anomalies will appear in real-time** as they are detected by Flink
 
 ### Feature Behavior
 
@@ -510,12 +470,23 @@ Once the feature is enabled and Flink queries are running:
 
 > **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
 
-<details>
-<summary><b>Part 7: Vector Search Against Vector Database (Optional)</b></summary>
 
-This is an optional advanced feature that demonstrates how to perform vector search operations against a MongoDB vector database using Confluent Cloud for Apache Flink. You'll learn how to create embeddings from search queries and perform similarity searches.
+## Part 6: Vector Search Against Vector Database (Optional)
 
-### Step 7.1: Create MongoDB Connection
+
+This is an optional advanced feature that demonstrates how to perform vector search operations against a MongoDB vector database using Confluent Cloud for Apache Flink. You'll learn how to create embeddings from search queries and perform similarity searches. 
+
+### Prerequisites
+1. Your own [MongoDB account](https://www.mongodb.com/lp/cloud/atlas/try4-reg)
+2. Knowledge of how to setup [Network](https://www.mongodb.com/docs/atlas/security/ip-access-list/) and [Database access](https://www.mongodb.com/docs/v8.0/reference/database-users/) for MongoDB
+3. Knowledge of how to import a `json` file into MongoDB Atlas using the `mongoimport` Command-Line Utility or the MongoDB Compass application. 
+
+### Step 6.0: Import Seed Data
+1. Create a new database in a MongoDB cluster named `reinvent`
+1. Create a new collection within the new database called `commentary`
+1. Import the `commentary.json` (file is found in the `admin` directory of this repo) into the `commentary` collection.
+
+### Step 6.1: Create MongoDB Connection
 
 1. **Navigate to Connections in Confluent Cloud:**
    - Go to [Manage Connections](https://docs.confluent.io/cloud/current/integrations/connections/manage-connections.html#create-a-connection)
@@ -526,7 +497,7 @@ This is an optional advanced feature that demonstrates how to perform vector sea
 
    > **Note:** Replace the connection name in the SQL statements below with your actual MongoDB connection name.
 
-### Step 7.2: Create OpenAI Embedding Connection
+### Step 6.2: Create OpenAI Embedding Connection
 
 1. **Open SQL Workspace** in Confluent Cloud Flink (same as Part 3)
 
@@ -547,12 +518,12 @@ This is an optional advanced feature that demonstrates how to perform vector sea
 
    > **Note:** Make sure to replace the API key placeholder (`*****`) with your actual OpenAI API key before executing.
 
-### Step 7.3: Create Embedding Model
+### Step 6.3: Create Embedding Model
 
 Create a model to generate embeddings from text input:
 
 ```sql
-CREATE MODEL plot_embed
+CREATE MODEL commentary_query_embed
 INPUT (input STRING)
 OUTPUT (embedding ARRAY<FLOAT>)
 WITH (
@@ -562,103 +533,72 @@ WITH (
 );
 ```
 
-### Step 7.4: Create External MongoDB Table
+### Step 6.4: Create External MongoDB Table
 
 Create an external table that references your MongoDB collection with vector embeddings:
 
 ```sql
-CREATE TABLE mongodb_movies (
-  title STRING,
-  plot STRING,
-  plot_embedding ARRAY<FLOAT>
+CREATE TABLE mongo_commentary (
+  message STRING,
+  message_embedding ARRAY<FLOAT>
 ) WITH (
   'connector' = 'mongodb',
-  'mongodb.connection' = 'mongodb-connection-23eb1bdb-a806-4db3-a50e-820271af1a89',
-  'mongodb.database' = 'sample_mflix',
-  'mongodb.collection' = 'embedded_movies',
+  'mongodb.connection' = 'mongodb-connection-xxxxxxx',
+  'mongodb.database' = 'reinvent',
+  'mongodb.collection' = 'commentary',
   'mongodb.index' = 'vector_index',
   'mongodb.numcandidates' = '100'
 );
 ```
 
-> **Note:** Replace `'mongodb-connection-23eb1bdb-a806-4db3-a50e-820271af1a89'` with your actual MongoDB connection name from Step 7.1. Also ensure your MongoDB collection has a vector index configured.
+> **Note:** Replace `'mongodb-connection-xxxxxxxx'` with your actual MongoDB connection name from Step 7.1. Also ensure your MongoDB collection has a vector index configured.
 
-### Step 7.5: Create Search Query Tables
+### Step 6.5: Create Search Query Tables
 
 Create tables to store search queries and their vector embeddings:
 
 1. **Create table for search queries:**
    ```sql
-   CREATE TABLE movie_plot_queries (plot STRING);
+   CREATE TABLE commentary_queries (query STRING);
    ```
 
 2. **Insert sample search query:**
    ```sql
-   INSERT INTO movie_plot_queries VALUES
-   ('A major countermands orders and attacks to revenge a previous massacre of men, women and children.');
+   INSERT INTO `commentary_queries` VALUES ('Comments about Hamilton');
    ```
 
 3. **Create table to store query vectors:**
    ```sql
-   CREATE TABLE movie_plot_vectors (plot STRING, vector ARRAY<FLOAT>);
+   CREATE TABLE commentary_queries_vectors (query STRING, vector ARRAY<FLOAT>);
    ```
 
-### Step 7.6: Generate Embeddings for Search Queries
+### Step 6.6: Generate Embeddings for Search Queries
 
-Generate vector embeddings for the search queries using the embedding model:
+1. Generate vector embeddings for the search queries using the embedding model:
 
-```sql
-INSERT INTO movie_plot_vectors
-SELECT plot, embedding
-FROM movie_plot_queries,
-LATERAL TABLE(ML_PREDICT('plot_embed', plot));
-```
-
-### Step 7.7: Create Result Table and Perform Vector Search
-
-1. **Create table to store vector search results:**
    ```sql
-   CREATE TABLE movies_vector_search_result (
-     plot STRING,
-     search_results ARRAY<ROW<title STRING, plot STRING, plot_embedding ARRAY<FLOAT>, score DOUBLE>>
-   );
+   INSERT INTO commentary_queries_vectors
+   SELECT query,embedding
+   FROM commentary_queries,
+   LATERAL TABLE(ML_PREDICT('commentary_query_embed', query));
    ```
 
-2. **Perform vector search operation:**
+### Step 6.7: Perform Vector Search
+
+1. **Perform vector search operation:**
    ```sql
-   INSERT INTO movies_vector_search_result
    SELECT *
-   FROM movie_plot_vectors q,
+   FROM `commentary_queries_vectors` q,
    LATERAL TABLE(
-     VECTOR_SEARCH_AGG(mongodb_movies, DESCRIPTOR(plot_embedding), q.vector, 5)
-   );
+   VECTOR_SEARCH_AGG(mongo_commentary, DESCRIPTOR(message_embedding), q.vector, 5, map['debug', true])
+   ) limit 5;
    ```
 
-   This query performs a vector similarity search, finding the top 5 most similar movie plots in MongoDB based on the query embedding.
+   This query performs a vector similarity search, finding the top 5 most similar comments in MongoDB based on the query embedding.
 
-### Step 7.8: View Search Results
+   > **Note:** The vector search uses cosine similarity to find the most relevant matches. Ensure your MongoDB collection has documents with pre-computed `plot_embedding` vectors and a vector index configured for optimal performance.
 
-Query the results to see the matched movies with their similarity scores:
 
-```sql
-SELECT
-  mv.plot AS query_plot,
-  r.plot,
-  r.title,
-  r.score
-FROM movies_vector_search_result AS mv
-CROSS JOIN UNNEST(search_results) AS r(title, plot, plot_embedding, score);
-```
-
-This will display:
-- The original search query plot
-- Matched movie titles from MongoDB
-- Matched movie plots
-- Similarity scores (higher scores indicate better matches)
-
-> **Note:** The vector search uses cosine similarity to find the most relevant matches. Ensure your MongoDB collection has documents with pre-computed `plot_embedding` vectors and a vector index configured for optimal performance.
-
-</details>
 
 ## Results
 ![](images/finished.png)
