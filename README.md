@@ -262,10 +262,55 @@ cd ..
 
 </details>
 
-## Part 3: Implement Flink Model Inference
+## Part 3: Running the Application
+
+Now that all Flink SQL statements (including optional anomaly detection) are set up, start the backend and frontend servers:
+
+### Step 3.1: Start the Backend Server
+
+**macOS/Linux:**
+```bash
+cd backend
+```
+```bash
+source venv/bin/activate
+```
+```bash
+python3 main.py
+```
+
+**Windows:**
+```powershell
+cd backend
+```
+```powershell
+venv\Scripts\Activate.ps1
+```
+```powershell
+python main.py
+```
+
+> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
+
+### Step 3.2: Start the Frontend Application
+Open a new terminal. Make sure you are in the directory of the repository. Then run the following.
+```bash
+cd frontend
+```
+```bash
+npm run dev
+```
+
+> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
+
+### Step 3.3: Start a new Race
+1. Open the [frontend](http://localhost:5173) application
+2. **Choose Your Driver** to start a new race.
+
+## Part 4: Implement Flink Model Inference
 In this section, you will using Flink Model Inference and Amazon Bedrock to generate commentary regarding the ongoing race.
 ![Architecture for LLM generated commentary](images/commentary.png)
-### Step 3.1: Open SQL Workspace
+### Step 4.1: Open SQL Workspace
 
 1. **Navigate to Flink in Confluent Cloud:**
    - Go to [Flink UI](https://confluent.cloud/go/flink)
@@ -279,7 +324,7 @@ In this section, you will using Flink Model Inference and Amazon Bedrock to gene
    - Select your environment and Kafka cluster
    ![](images/catalog_database.png)
 
-### Step 3.2: Realtime Analytics with Confluent Cloud for Apache Flink
+### Step 4.2: Realtime Analytics with Confluent Cloud for Apache Flink
 
 Now that you have the SQL Workspace open, execute the following Flink SQL statements one by one:
 
@@ -288,17 +333,15 @@ Now that you have the SQL Workspace open, execute the following Flink SQL statem
    First, update the AWS credentials in the connection configuration:
    - Replace `'aws-access-key' = '***'` with your AWS access key
    - Replace `'aws-secret-key' = '***'` with your AWS secret key
-   - Replace `'aws-session-token' = '***'` with your AWS session token (if using temporary credentials)
 
    Then execute:
    ```sql
    CREATE CONNECTION `bedrock-connection`
    WITH (
      'type' = 'BEDROCK',
-     'endpoint' = 'https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-3-5-sonnet-20240620-v1:0/invoke',
+     'endpoint' = 'https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-3-7-sonnet-20250219-v1:0/invoke',
      'aws-access-key' = '***',
-     'aws-secret-key' = '***',
-     'aws-session-token' = '***'
+     'aws-secret-key' = '***'
    );
    ```
 
@@ -347,48 +390,6 @@ Now that you have the SQL Workspace open, execute the following Flink SQL statem
    ```
 
 > **Note:** Make sure to replace the AWS credentials placeholders (`***`) with your actual AWS credentials before executing the first SQL statement.
-
-## Part 4: Running the Application
-
-Now that all Flink SQL statements (including optional anomaly detection) are set up, start the backend and frontend servers:
-
-### Step 4.1: Start the Backend Server
-
-**macOS/Linux:**
-```bash
-cd backend
-```
-```bash
-source venv/bin/activate
-```
-```bash
-python3 main.py
-```
-
-**Windows:**
-```powershell
-cd backend
-```
-```powershell
-venv\Scripts\Activate.ps1
-```
-```powershell
-python main.py
-```
-
-> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
-
-### Step 4.2: Start the Frontend Application
-Open a new terminal. Make sure you are in the directory of the repository. Then run the following.
-```bash
-cd frontend
-```
-```bash
-npm run dev
-```
-
-> **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
-
 
 ## Part 5: Car Metrics and Anomaly Detection Setup 
 
