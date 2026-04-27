@@ -307,10 +307,13 @@ npm run dev
 1. Open the [frontend](http://localhost:5173) application
 2. **Choose Your Driver** to start a new race.
 
-## Part 4: Implement Flink Model Inference
-In this section, you will using Flink Model Inference and Amazon Bedrock to generate commentary regarding the ongoing race.
-![Architecture for LLM generated commentary](images/commentary.png)
-### Step 4.1: Open SQL Workspace
+## Part 4: Car Metrics and Anomaly Detection Setup
+This is a feature that demonstrates real-time anomaly detection using Confluent Flink's ML_DETECT_ANOMALIES function. The feature is enabled by default and can be disabled via config.yaml found in the `backend` directory.
+
+![Architecture for anomaly detection](images/anomaly.png)
+
+### Step 4.1: Set Up Flink SQL for Anomaly Detection
+Open SQL Workspace
 
 1. **Navigate to Flink in Confluent Cloud:**
    - Go to [Flink UI](https://confluent.cloud/go/flink)
@@ -324,7 +327,86 @@ In this section, you will using Flink Model Inference and Amazon Bedrock to gene
    - Select your environment and Kafka cluster
    ![](images/catalog_database.png)
 
-### Step 4.2: Realtime Analytics with Confluent Cloud for Apache Flink
+4. **Create sink table for detected anomalies (Flink will auto-create the Kafka topic):**
+   ```sql
+   CREATE TABLE `f1-car-metrics-anomalies` (
+    key STRING,
+    ts TIMESTAMP_LTZ(3),
+    team_name STRING,
+    engine_temperature DOUBLE,
+    is_anomaly BOOLEAN,
+    PRIMARY KEY (key, ts) NOT ENFORCED
+   )
+   DISTRIBUTED BY (key, ts)
+   WITH (
+      'changelog.mode' = 'upsert'
+   );
+   ```
+   
+   > **Note:** Using `changelog.mode = 'append'` because `ML_DETECT_ANOMALIES` in window functions doesn't support retraction. Anomalies are append-only events.
+   
+   > **Note:** The `f1-car-metrics-anomalies` Kafka topic will be automatically created by Flink when you execute the INSERT statement below.
+
+5. **Create simple Flink SQL query for anomaly detection:**
+   ```sql
+    SET 'sql.state-ttl' = '24 h';
+    INSERT INTO `f1-car-metrics-anomalies`
+    SELECT
+      CAST(key AS STRING) AS key,
+      TO_TIMESTAMP_LTZ(`timestamp`, 3) AS ts,
+      team_name,
+      engine_temperature,
+      s.anomaly_results[6] AS is_anomaly
+    FROM (
+      SELECT
+        key,
+        team_name,
+        `timestamp`,
+        engine_temperature,
+        ML_DETECT_ANOMALIES(
+          engine_temperature,
+          TO_TIMESTAMP_LTZ(`timestamp`, 3),
+          JSON_OBJECT(
+            'horizon' VALUE 1,
+            'confidencePercentage' VALUE 90.0,
+            'minTrainingSize' VALUE 16
+          )
+        ) OVER (
+          PARTITION BY team_name
+          ORDER BY TO_TIMESTAMP_LTZ(`timestamp`, 3)
+          RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS anomaly_results
+      FROM `f1-car-metrics`
+    ) AS s
+    WHERE s.anomaly_results[6] = TRUE;
+   ```
+
+
+
+### Step 4.2: View Anomalies in UI
+
+Once Flink queries are running:
+
+1. **Restart the Backend Server**. You can do this by pressing `CTRL+C` where you have your backend running. Then run the  `python3 main.py` again.
+1. **Start a race** from the (frontend)[http://localhost:5173] application
+1. **Click on the View Anomalies button** on the right bottom of the screen at anytime
+13. **Anomalies will appear in real-time** as they are detected by Flink
+
+### Feature Behavior
+
+- **When enabled**: Car metrics are continuously produced during races, Flink detects anomalies, and they appear in the UI
+- **When disabled**: No car metrics are produced, no Flink queries needed, and the UI shows a message that the feature is disabled
+- **Default**: Feature is disabled (`enabled: false`) for backward compatibility
+
+> **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
+
+
+## Part 5: Implement Flink Model Inference
+In this section, you will using Flink Model Inference and Amazon Bedrock to generate commentary regarding the ongoing race.
+![Architecture for LLM generated commentary](images/commentary.png)
+
+### Step 5.1: Open SQL Workspace** in Confluent Cloud Flink (same as Part 4)
+### Step 5.2: Realtime Analytics with Confluent Cloud for Apache Flink
 
 Now that you have the SQL Workspace open, execute the following Flink SQL statements one by one:
 
@@ -390,89 +472,6 @@ Now that you have the SQL Workspace open, execute the following Flink SQL statem
    ```
 
 > **Note:** Make sure to replace the AWS credentials placeholders (`***`) with your actual AWS credentials before executing the first SQL statement.
-
-## Part 5: Car Metrics and Anomaly Detection Setup 
-
-This is an optional advanced feature that demonstrates real-time anomaly detection using Confluent Flink's ML_DETECT_ANOMALIES function. The feature is enabled by default and can be disabled via config.yaml found in the `backend` directory.
-
-![Architecture for anomaly detection](images/anomaly.png)
-
-### Step 5.1: Set Up Flink SQL for Anomaly Detection
-
-1. **Open SQL Workspace** in Confluent Cloud Flink (same as Part 3)
-
-2. **Create sink table for detected anomalies (Flink will auto-create the Kafka topic):**
-   ```sql
-   CREATE TABLE `f1-car-metrics-anomalies` (
-    key STRING,
-    ts TIMESTAMP_LTZ(3),
-    team_name STRING,
-    engine_temperature DOUBLE,
-    is_anomaly BOOLEAN,
-    PRIMARY KEY (key, ts) NOT ENFORCED
-   )
-   DISTRIBUTED BY (key, ts)
-   WITH (
-      'changelog.mode' = 'upsert'
-   );
-   ```
-   
-   > **Note:** Using `changelog.mode = 'append'` because `ML_DETECT_ANOMALIES` in window functions doesn't support retraction. Anomalies are append-only events.
-   
-   > **Note:** The `f1-car-metrics-anomalies` Kafka topic will be automatically created by Flink when you execute the INSERT statement below.
-
-3. **Create simple Flink SQL query for anomaly detection:**
-   ```sql
-    SET 'sql.state-ttl' = '24 h';
-    INSERT INTO `f1-car-metrics-anomalies`
-    SELECT
-      CAST(key AS STRING) AS key,
-      TO_TIMESTAMP_LTZ(`timestamp`, 3) AS ts,
-      team_name,
-      engine_temperature,
-      s.anomaly_results[6] AS is_anomaly
-    FROM (
-      SELECT
-        key,
-        team_name,
-        `timestamp`,
-        engine_temperature,
-        ML_DETECT_ANOMALIES(
-          engine_temperature,
-          TO_TIMESTAMP_LTZ(`timestamp`, 3),
-          JSON_OBJECT(
-            'horizon' VALUE 1,
-            'confidencePercentage' VALUE 90.0,
-            'minTrainingSize' VALUE 16
-          )
-        ) OVER (
-          PARTITION BY team_name
-          ORDER BY TO_TIMESTAMP_LTZ(`timestamp`, 3)
-          RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-        ) AS anomaly_results
-      FROM `f1-car-metrics`
-    ) AS s
-    WHERE s.anomaly_results[6] = TRUE;
-   ```
-
-
-
-### Step 5.2: View Anomalies in UI
-
-Once Flink queries are running:
-
-1. **Restart the Backend Server**. You can do this by pressing `CTRL+C` where you have your backend running. Then run the  `python3 main.py` again.
-1. **Start a race** from the (frontend)[http://localhost:5173] application
-1. **Click on the View Anomalies button** on the right bottom of the screen at anytime
-13. **Anomalies will appear in real-time** as they are detected by Flink
-
-### Feature Behavior
-
-- **When enabled**: Car metrics are continuously produced during races, Flink detects anomalies, and they appear in the UI
-- **When disabled**: No car metrics are produced, no Flink queries needed, and the UI shows a message that the feature is disabled
-- **Default**: Feature is disabled (`enabled: false`) for backward compatibility
-
-> **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
 
 
 ## Part 6: Vector Search Against Vector Database (Optional)
