@@ -405,7 +405,7 @@ Once Flink queries are running:
 In this section, you will using Flink Model Inference and Amazon Bedrock to generate commentary regarding the ongoing race.
 ![Architecture for LLM generated commentary](images/commentary.png)
 
-### Step 5.1: Open SQL Workspace** in Confluent Cloud Flink (same as Part 4)
+### Step 5.1: Open SQL Workspace in Confluent Cloud Flink (same as Part 4)
 ### Step 5.2: Realtime Analytics with Confluent Cloud for Apache Flink
 
 Now that you have the SQL Workspace open, execute the following Flink SQL statements one by one:
