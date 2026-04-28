@@ -401,7 +401,7 @@ Once Flink queries are running:
 > **Note:** The anomaly detection feature requires additional Flink compute resources. Make sure your Confluent Cloud account has sufficient capacity.
 
 
-## Part 5: Implement Flink Model Inference
+## [Optional] Part 5: Implement Flink Model Inference
 In this section, you will using Flink Model Inference and Amazon Bedrock to generate commentary regarding the ongoing race.
 ![Architecture for LLM generated commentary](images/flink-model-inference.png)
 
