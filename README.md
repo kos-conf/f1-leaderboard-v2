@@ -605,6 +605,7 @@ Create tables to store search queries and their vector embeddings:
 
 
 ## Results
+![](images/f1-dashboard.png)
 ![](images/finished.png)
 
 ## Cleanup
