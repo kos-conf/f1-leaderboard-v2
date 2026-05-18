@@ -115,20 +115,20 @@ function Setup-Backend {
     # Activate virtual environment
     $activateScript = "venv\Scripts\Activate.ps1"
     if (Test-Path $activateScript) {
-        & $activateScript
+        . $activateScript
     } else {
         Write-Error "Failed to activate virtual environment"
         Pop-Location
         exit 1
     }
-    
+
     # Upgrade pip
     Write-Info "Upgrading pip..."
     python -m pip install --upgrade pip --quiet
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "Failed to upgrade pip, continuing..."
     }
-    
+
     # Install dependencies
     Write-Info "Installing backend dependencies..."
     if (Test-Path "requirements.txt") {
@@ -177,20 +177,20 @@ function Setup-Admin {
     # Activate virtual environment
     $activateScript = "venv\Scripts\Activate.ps1"
     if (Test-Path $activateScript) {
-        & $activateScript
+        . $activateScript
     } else {
         Write-Error "Failed to activate virtual environment"
         Pop-Location
         exit 1
     }
-    
+
     # Upgrade pip
     Write-Info "Upgrading pip..."
     python -m pip install --upgrade pip --quiet
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "Failed to upgrade pip, continuing..."
     }
-    
+
     # Install dependencies
     Write-Info "Installing admin dependencies..."
     if (Test-Path "requirements.txt") {
@@ -292,7 +292,7 @@ function Deploy-Infrastructure {
     # Activate virtual environment
     $activateScript = "venv\Scripts\Activate.ps1"
     if (Test-Path $activateScript) {
-        & $activateScript
+        . $activateScript
     } else {
         Write-Error "Failed to activate virtual environment"
         Pop-Location
@@ -361,7 +361,7 @@ function Main {
     Write-Host "     cd admin; .\venv\Scripts\Activate.ps1; python main.py"
     Write-Host "  2. Follow README to proceed to Part 2"
     Write-Host "  3. Start the backend: cd backend; .\venv\Scripts\Activate.ps1; python main.py"
-    Write-Host "  3. Start the frontend: cd frontend; npm run dev"
+    Write-Host "  4. Start the frontend: cd frontend; npm run dev"
     Write-Host ""
 }
 

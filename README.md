@@ -37,8 +37,13 @@ python3 --version && pip3 --version
 ```bash
 git --version
 ```
+**macOS/Linux:**
 ```bash
 python3 -m venv test_env && rm -rf test_env
+```
+**Windows (PowerShell):**
+```powershell
+python -m venv test_env; Remove-Item -Recurse -Force test_env
 ```
 
 ## Part 1: Confluent Cloud Setup
@@ -126,12 +131,7 @@ The setup script will:
 
 If you prefer to set up manually or the automated script doesn't work for your environment:
 
-#### Step 1.1: Clone the Repository
-```bash
-git clone https://github.com/kos-conf/f1-leaderboard-v2.git && cd f1-leaderboard-v2
-```
-
-#### Step 1.2: Set Up Backend Environment
+#### Step 2.1: Set Up Backend Environment
 
 Create virtual environment:
 ```bash
@@ -145,7 +145,7 @@ Activate virtual environment:
   source venv/bin/activate
   ```
 
-- On Windows: 
+- On Windows:
   ```bash
   venv\Scripts\activate
   ```
@@ -160,7 +160,7 @@ Return to root directory:
 cd ..
 ```
 
-#### Step 1.3: Set Up Admin Environment
+#### Step 2.2: Set Up Admin Environment
 
 ```bash
 cd admin && python3 -m venv venv
@@ -181,7 +181,7 @@ Return to root directory:
 cd ..
 ```
 
-#### Step 1.4: Set Up Frontend Environment
+#### Step 2.3: Set Up Frontend Environment
 ```bash
 cd frontend
 ```
@@ -192,10 +192,7 @@ npm install
 cd ..
 ```
 
-</details>
-
-<details>
-<summary><b>Step 2.1: Deploy Infrastructure Using Admin Script (Manual Fallback)</b></summary>
+#### Step 2.4: Deploy Infrastructure Using Admin Script
 
 > **Note:** The automated setup script (`./setup.sh` or `setup.ps1`) automatically deploys infrastructure if credentials are configured in `admin/config.yaml`. This step is only needed if:
 > - The automated deployment failed and you need to retry
@@ -203,7 +200,7 @@ cd ..
 > - You want to re-run the deployment after making changes
 
 1. **Activate virtual environment:**
-   
+
    - On macOS/Linux:
      ```bash
      cd admin
@@ -211,7 +208,7 @@ cd ..
      ```bash
      source venv/bin/activate
      ```
-   
+
    - On Windows:
      ```bash
      cd admin
@@ -264,7 +261,7 @@ cd ..
 
 ## Part 3: Running the Application
 
-Now that all Flink SQL statements (including optional anomaly detection) are set up, start the backend and frontend servers:
+ Start the backend and frontend servers to run the core leaderboard. The anomaly detection (Part 4) and AI commentary (Part 5) features require additional Flink SQL setup but are optional:
 
 ### Step 3.1: Start the Backend Server
 
@@ -291,6 +288,9 @@ python main.py
 ```
 
 > **Note: This command needs to be running all the time. Do not stop this server. Please continue the lab on a new Terminal Tab.**
+
+> [!NOTE]
+> You may see `UNKNOWN_TOPIC_OR_PART` consumer errors for `f1-car-metrics-anomalies` and `f1-commentary` at startup. This is expected — those topics are created later by Flink SQL in Parts 4 and 5. The errors are non-fatal and will resolve automatically once those steps are completed.
 
 ### Step 3.2: Start the Frontend Application
 Open a new terminal. Make sure you are in the directory of the repository. Then run the following.
@@ -342,9 +342,9 @@ Open SQL Workspace
       'changelog.mode' = 'upsert'
    );
    ```
-   
-   > **Note:** Using `changelog.mode = 'append'` because `ML_DETECT_ANOMALIES` in window functions doesn't support retraction. Anomalies are append-only events.
-   
+
+   > **Note:** Using `changelog.mode = 'upsert'` because `ML_DETECT_ANOMALIES` retrains its model as new data arrives and re-evaluates previous scores, producing update messages. Upsert mode handles these by writing each `(key, ts)` result as an insert-or-replace on the Kafka topic.
+
    > **Note:** The `f1-car-metrics-anomalies` Kafka topic will be automatically created by Flink when you execute the INSERT statement below.
 
 5. **Create simple Flink SQL query for anomaly detection:**
@@ -388,9 +388,9 @@ Open SQL Workspace
 Once Flink queries are running:
 
 1. **Restart the Backend Server**. You can do this by pressing `CTRL+C` where you have your backend running. Then run the  `python3 main.py` again.
-1. **Start a race** from the (frontend)[http://localhost:5173] application
-1. **Click on the View Anomalies button** on the right bottom of the screen at anytime
-13. **Anomalies will appear in real-time** as they are detected by Flink
+2. **Start a race** from the [frontend](http://localhost:5173) application
+3. **Click on the View Anomalies button** on the right bottom of the screen at anytime
+4. **Anomalies will appear in real-time** as they are detected by Flink
 
 ### Feature Behavior
 
@@ -402,16 +402,27 @@ Once Flink queries are running:
 
 
 ## [Optional] Part 5: Implement Flink Model Inference
-In this section, you will using Flink Model Inference and Amazon Bedrock to generate commentary regarding the ongoing race.
+In this section, you will use Flink Model Inference and Amazon Bedrock to generate commentary regarding the ongoing race.
 ![Architecture for LLM generated commentary](images/flink-model-inference.png)
 
+> [!IMPORTANT]
+> **This part requires an AWS account with Amazon Bedrock access.**
+>
+> Before proceeding, ensure you have:
+>
+> - An [AWS account](https://aws.amazon.com/free/)
+> - Amazon Bedrock enabled in the **us-east-1** region
+> - The **Claude Sonnet 4.6** model (`us.anthropic.claude-sonnet-4-6`) enabled via [Bedrock Model Access](https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/modelaccess)
+> - An IAM user or role with `AmazonBedrockFullAccess` (or equivalent) and a corresponding **access key + secret**
+
 ### Step 5.1: Open SQL Workspace in Confluent Cloud Flink (same as Part 4)
+
 ### Step 5.2: Realtime Analytics with Confluent Cloud for Apache Flink
 
 Now that you have the SQL Workspace open, execute the following Flink SQL statements one by one:
 
 1. **Create Bedrock Connection:**
-   
+
    First, update the AWS credentials in the connection configuration:
    - Replace `'aws-access-key' = '***'` with your AWS access key
    - Replace `'aws-secret-key' = '***'` with your AWS secret key
@@ -421,7 +432,7 @@ Now that you have the SQL Workspace open, execute the following Flink SQL statem
    CREATE CONNECTION `bedrock-connection`
    WITH (
      'type' = 'BEDROCK',
-     'endpoint' = 'https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-3-7-sonnet-20250219-v1:0/invoke',
+     'endpoint' = 'https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-sonnet-4-6/invoke',
      'aws-access-key' = '***',
      'aws-secret-key' = '***'
    );
@@ -454,36 +465,45 @@ Now that you have the SQL Workspace open, execute the following Flink SQL statem
 4. **Generate Real-Time Commentary:**
    ```sql
    INSERT INTO `f1-commentary`
-   SELECT 
+   SELECT
        CONCAT('comment-', CAST(UNIX_TIMESTAMP() AS STRING), '-', REPLACE(driver_name, ' ', '_')) AS id,
        ai_result.commentary AS message,
        `timestamp`,
-       CASE 
+       CASE
            WHEN `position` = 1 THEN 'highlight'
            WHEN `position` <= 3 THEN 'warning'
            ELSE 'info'
        END AS type
    FROM `f1-driver-positions`,
-   LATERAL TABLE(AI_COMPLETE('f1_commentary_generator', 
-       CONCAT('Driver: ', driver_name, 
-              ', Position: ', CAST(`position` AS STRING), 
+   LATERAL TABLE(AI_COMPLETE('f1_commentary_generator',
+       CONCAT('Driver: ', driver_name,
+              ', Position: ', CAST(`position` AS STRING),
               '. Generate exciting F1 commentary. Keep it under 80 characters.')
    )) AS ai_result(commentary);
    ```
 
 > **Note:** Make sure to replace the AWS credentials placeholders (`***`) with your actual AWS credentials before executing the first SQL statement.
 
+### Step 5.3: View Commentary in the App
 
-## Part 6: Vector Search Against Vector Database (Optional)
+Once the Flink INSERT statement is running:
+
+1. **Start a race** from the [frontend](http://localhost:5173) application.
+2. **Watch the Commentary Panel** on the right side of the screen — AI-generated commentary will appear as race positions change.
+
+> **Note:** Commentary has inherent latency due to LLM inference time on Amazon Bedrock. Expect a delay of several seconds between position updates and commentary appearing in the UI.
 
 
-This is an optional advanced feature that demonstrates how to perform vector search operations against a MongoDB vector database using Confluent Cloud for Apache Flink. You'll learn how to create embeddings from search queries and perform similarity searches. 
+## [Optional] Part 6: Vector Search Against Vector Database
+
+
+This is an optional advanced feature that demonstrates how to perform vector search operations against a MongoDB vector database using Confluent Cloud for Apache Flink. You'll learn how to create embeddings from search queries and perform similarity searches.
 ![Architecture for anomaly detection](images/embedding.png)
 
 ### Prerequisites
 1. Your own [MongoDB account](https://www.mongodb.com/lp/cloud/atlas/try4-reg)
 2. Knowledge of how to setup [Network](https://www.mongodb.com/docs/atlas/security/ip-access-list/) and [Database access](https://www.mongodb.com/docs/v8.0/reference/database-users/) for MongoDB
-3. Knowledge of how to import a `json` file into MongoDB Atlas using the `mongoimport` Command-Line Utility or the MongoDB Compass application. 
+3. Knowledge of how to import a `json` file into MongoDB Atlas using the `mongoimport` Command-Line Utility or the MongoDB Compass application.
 
 ### Step 6.0: Import Seed Data
 1. Create a new database in a MongoDB cluster named `reinvent`
@@ -506,7 +526,7 @@ This is an optional advanced feature that demonstrates how to perform vector sea
 1. **Open SQL Workspace** in Confluent Cloud Flink (same as Part 3)
 
 2. **Create OpenAI connection for embeddings:**
-   
+
    First, update the API key in the connection configuration:
    - Replace `'api-key' = '*****'` with your OpenAI API key
 
@@ -555,7 +575,7 @@ CREATE TABLE mongo_commentary (
 );
 ```
 
-> **Note:** Replace `'mongodb-connection-xxxxxxxx'` with your actual MongoDB connection name from Step 7.1. Also ensure your MongoDB collection has a vector index configured.
+> **Note:** Replace `'mongodb-connection-xxxxxxxx'` with your actual MongoDB connection name from Step 6.1. Also ensure your MongoDB collection has a vector index configured.
 
 ### Step 6.5: Create Search Query Tables
 
@@ -631,12 +651,12 @@ Use the teardown script to automatically delete all resources:
    ```
 
 2. **Activate virtual environment (if not already activated):**
-   
+
    **macOS/Linux:**
    ```bash
    source venv/bin/activate
    ```
-   
+
    **Windows:**
    ```powershell
    venv\Scripts\Activate.ps1
@@ -656,6 +676,8 @@ Use the teardown script to automatically delete all resources:
    - Delete service account
    - Delete environment
 
+   > **Note:** API keys are deleted before the cluster and environment to avoid leaving orphaned IAM references.
+
    > **Note:** The script uses the same configuration as `main.py` (environment variables or `admin/config.yaml`). Make sure you have your Confluent Cloud Management API credentials configured.
 
 4. **Verify deletion:**
@@ -663,10 +685,20 @@ Use the teardown script to automatically delete all resources:
    - Some resources may take a few minutes to fully delete
 
 ### Local Cleanup
+
+If a virtual environment is still active in your terminal, deactivate it first:
 ```bash
-rm -rf backend/venv
-rm -rf frontend/node_modules
-rm -rf admin/venv
+deactivate
+```
+
+**macOS/Linux/Git Bash:**
+```bash
+rm -rf backend/venv frontend/node_modules admin/venv
+```
+
+**Windows (PowerShell):**
+```powershell
+Remove-Item -Recurse -Force backend\venv, frontend\node_modules, admin\venv
 ```
 
 ## Resources
@@ -679,4 +711,3 @@ rm -rf admin/venv
 ---
 
 **🎉 Lab Complete!** You've successfully built a real-time F1 analytics application.
-

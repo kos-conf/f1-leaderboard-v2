@@ -287,7 +287,7 @@ main() {
     echo ""
     if [ "$OS" = "windows" ]; then
         # Windows/Git Bash doesn't always support read -p well
-        print_info "To deploy infrastructure, run: cd admin && source venv/bin/activate && python main.py"
+        print_info "To deploy infrastructure, run: cd admin && source venv/Scripts/activate && python main.py"
         print_info "Make sure to configure admin/config.yaml with your Confluent Cloud API credentials first"
     else
         read -p "Do you want to deploy Confluent Cloud infrastructure now? (y/n) " -n 1 -r
@@ -306,10 +306,17 @@ main() {
     echo "=========================================="
     echo ""
     print_info "Next steps:"
-    echo "  1. If you haven't deployed infrastructure, edit admin/config.yaml and run:"
-    echo "     cd admin && source venv/bin/activate && python main.py"
-    echo "  2. Follow README to proceed to Part 2"
-    echo "  3. Start the backend: cd backend && source venv/bin/activate && python main.py"
+    if [ "$OS" = "windows" ]; then
+        echo "  1. If you haven't deployed infrastructure, edit admin/config.yaml and run:"
+        echo "     cd admin && source venv/Scripts/activate && python main.py"
+        echo "  2. Follow README to proceed to Part 2"
+        echo "  3. Start the backend: cd backend && source venv/Scripts/activate && python main.py"
+    else
+        echo "  1. If you haven't deployed infrastructure, edit admin/config.yaml and run:"
+        echo "     cd admin && source venv/bin/activate && python main.py"
+        echo "  2. Follow README to proceed to Part 2"
+        echo "  3. Start the backend: cd backend && source venv/bin/activate && python main.py"
+    fi
     echo "  4. Start the frontend: cd frontend && npm run dev"
     echo ""
 }

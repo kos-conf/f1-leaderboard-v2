@@ -549,6 +549,21 @@ class ConfluentCloudManager:
             print(f"⚠️  Error assigning EnvironmentAdmin role: {e}")
             return False
     
+    def get_current_principal_id(self) -> Optional[tuple]:
+        """Get the ID and kind of the currently authenticated principal by inspecting the API key"""
+        url = f"{self.BASE_URL}/iam/v2/api-keys/{self.api_key}"
+        try:
+            response = requests.get(url, headers=self.headers)
+            if response.status_code == 200:
+                owner = response.json().get('spec', {}).get('owner', {})
+                pid = owner.get('id')
+                pkind = owner.get('kind', 'User')
+                if pid:
+                    return (pid, pkind)
+        except Exception as e:
+            print(f"⚠️  Error getting current principal: {e}")
+        return None
+
     def assign_cloud_cluster_admin_role(self, service_account_id: str, env_id: str, cluster_id: str) -> bool:
         """Assign CloudClusterAdmin role to a service account for a cluster"""
         url = f"{self.BASE_URL}/iam/v2/role-bindings"
@@ -667,7 +682,7 @@ class ConfluentCloudManager:
             print(f"⚠️  Error deleting API key: {e}")
             return False
     
-    def get_or_create_kafka_api_key(self, cluster_id: str, env_id: str, service_account_id: str, expected_api_key: str = None, description: str = "Kafka API key for admin script") -> Optional[tuple]:
+    def get_or_create_kafka_api_key(self, cluster_id: str, env_id: str, service_account_id: str, expected_api_key: str = None, description: str = "Kafka API key for admin script", owner_kind: str = "ServiceAccount") -> Optional[tuple]:
         """Get existing Kafka API key or create a new one, verifying against expected key"""
         # List all API keys for the service account
         api_keys = self.list_api_keys_for_service_account(service_account_id)
@@ -696,12 +711,12 @@ class ConfluentCloudManager:
         
         # Create new API key
         print(f"   Creating new Kafka API key...")
-        return self.create_kafka_api_key(cluster_id, env_id, service_account_id, description)
-    
-    def create_kafka_api_key(self, cluster_id: str, env_id: str, service_account_id: str, description: str = "Kafka API key for admin script") -> Optional[tuple]:
+        return self.create_kafka_api_key(cluster_id, env_id, service_account_id, description, owner_kind)
+
+    def create_kafka_api_key(self, cluster_id: str, env_id: str, service_account_id: str, description: str = "Kafka API key for admin script", owner_kind: str = "ServiceAccount") -> Optional[tuple]:
         """Create a Kafka API key for the cluster using a service account"""
         url = f"{self.BASE_URL}/iam/v2/api-keys"
-        
+
         # According to Confluent Cloud API docs, both owner and resource are required
         payload = {
             "spec": {
@@ -709,7 +724,7 @@ class ConfluentCloudManager:
                 "description": description,
                 "owner": {
                     "id": service_account_id,
-                    "kind": "ServiceAccount"
+                    "kind": owner_kind
                 },
                 "resource": {
                     "id": cluster_id,
@@ -808,7 +823,7 @@ class ConfluentCloudManager:
         sr_cluster_id, _ = self.get_schema_registry_info(env_id, cluster_id)
         return sr_cluster_id
     
-    def get_or_create_schema_registry_api_key(self, env_id: str, service_account_id: str, expected_api_key: str = None, cluster_id: str = None, description: str = "Schema Registry API key for admin script") -> Optional[tuple]:
+    def get_or_create_schema_registry_api_key(self, env_id: str, service_account_id: str, expected_api_key: str = None, cluster_id: str = None, description: str = "Schema Registry API key for admin script", owner_kind: str = "ServiceAccount") -> Optional[tuple]:
         """Get existing Schema Registry API key or create a new one, verifying against expected key"""
         # Schema Registry API keys are scoped to the environment, not a specific cluster
         # Get Schema Registry cluster ID for reference, but API key is environment-scoped
@@ -856,9 +871,9 @@ class ConfluentCloudManager:
         
         # Create new API key scoped to environment
         print(f"   Creating new Schema Registry API key (environment-scoped)...")
-        return self.create_schema_registry_api_key(env_id, service_account_id, sr_cluster_id, description)
-    
-    def create_schema_registry_api_key(self, env_id: str, service_account_id: str, sr_cluster_id: str, description: str = "Schema Registry API key for admin script") -> Optional[tuple]:
+        return self.create_schema_registry_api_key(env_id, service_account_id, sr_cluster_id, description, owner_kind)
+
+    def create_schema_registry_api_key(self, env_id: str, service_account_id: str, sr_cluster_id: str, description: str = "Schema Registry API key for admin script", owner_kind: str = "ServiceAccount") -> Optional[tuple]:
         """Create a Schema Registry API key scoped to the environment"""
         # Schema Registry API keys should be scoped to the environment, not the cluster
         # However, we still need to reference the Schema Registry cluster ID
@@ -873,7 +888,7 @@ class ConfluentCloudManager:
                 "description": description,
                 "owner": {
                     "id": service_account_id,
-                    "kind": "ServiceAccount"
+                    "kind": owner_kind
                 },
                 "resource": {
                     "id": env_id,
@@ -883,7 +898,7 @@ class ConfluentCloudManager:
                 }
             }
         }
-        
+
         try:
             response = requests.post(url, headers=self.headers, json=payload)
             # 201 = Created, 202 = Accepted (async creation)
@@ -893,6 +908,8 @@ class ConfluentCloudManager:
                 api_secret = data.get('spec', {}).get('secret')
                 if api_key and api_secret:
                     print(f"✅ Schema Registry API key created (environment-scoped): {api_key}")
+                    print(f"   ⏳ Waiting 20s for Schema Registry API key to propagate...")
+                    time.sleep(20)
                     return (api_key, api_secret)
                 else:
                     print(f"⚠️  API key created but secret not in response. Key ID: {api_key}")
@@ -907,7 +924,7 @@ class ConfluentCloudManager:
                         "description": description,
                         "owner": {
                             "id": service_account_id,
-                            "kind": "ServiceAccount"
+                            "kind": owner_kind
                         },
                         "resource": {
                             "id": sr_cluster_id,
@@ -924,6 +941,8 @@ class ConfluentCloudManager:
                     api_secret = data.get('spec', {}).get('secret')
                     if api_key and api_secret:
                         print(f"✅ Schema Registry API key created (alternative format): {api_key}")
+                        print(f"   ⏳ Waiting 20s for Schema Registry API key to propagate...")
+                        time.sleep(20)
                         return (api_key, api_secret)
                     else:
                         print(f"⚠️  API key created but secret not in response. Key ID: {api_key}")
@@ -1204,11 +1223,34 @@ def main():
     
     # Assign EnvironmentAdmin role
     print("   Assigning EnvironmentAdmin role...")
-    cloud_manager.assign_environment_admin_role(service_account_id, env_id)
-    
+    env_admin_ok = cloud_manager.assign_environment_admin_role(service_account_id, env_id)
+
     # Assign CloudClusterAdmin role for the cluster
     print("   Assigning CloudClusterAdmin role...")
-    cloud_manager.assign_cloud_cluster_admin_role(service_account_id, env_id, cluster_id)
+    cluster_admin_ok = cloud_manager.assign_cloud_cluster_admin_role(service_account_id, env_id, cluster_id)
+
+    roles_assigned = env_admin_ok and cluster_admin_ok
+
+    if roles_assigned:
+        # Wait for role bindings to propagate before creating API keys
+        print("   ⏳ Waiting 30s for role bindings to propagate...")
+        time.sleep(30)
+    else:
+        print("   ⚠️  Role assignment failed (requires OrganizationAdmin). Falling back to admin credentials for API key creation...")
+
+    # Determine which principal will own the API keys
+    if roles_assigned:
+        api_key_owner_id = service_account_id
+        api_key_owner_kind = "ServiceAccount"
+    else:
+        current_principal = cloud_manager.get_current_principal_id()
+        if current_principal:
+            api_key_owner_id, api_key_owner_kind = current_principal
+            print(f"   ℹ️  Using current principal ({api_key_owner_kind}: {api_key_owner_id}) for API key creation")
+        else:
+            print("   ⚠️  Could not determine current principal; API keys may lack permissions")
+            api_key_owner_id = service_account_id
+            api_key_owner_kind = "ServiceAccount"
     print()
     
     # Step 5: Get cluster details and create/verify API keys
@@ -1300,14 +1342,15 @@ def main():
             schema_registry_url = None
             print("   ⚠️  Cleared incorrect Kafka URL from schema_registry_url")
     
-    # Get or create Kafka API key using service account
+    # Get or create Kafka API key
     print("   Checking/Creating Kafka API key...")
     kafka_api_result = cloud_manager.get_or_create_kafka_api_key(
-        cluster_id, 
-        env_id, 
-        service_account_id, 
+        cluster_id,
+        env_id,
+        api_key_owner_id,
         expected_api_key=expected_kafka_api_key,
-        description="Kafka API key for F1 Leaderboard"
+        description="Kafka API key for F1 Leaderboard",
+        owner_kind=api_key_owner_kind
     )
     if kafka_api_result:
         kafka_api_key, kafka_api_secret = kafka_api_result
@@ -1331,14 +1374,15 @@ def main():
         kafka_api_secret = None
         print("   ⚠️  Failed to create Kafka API key. Will try to use existing config.")
     
-    # Get or create Schema Registry API key using service account
+    # Get or create Schema Registry API key
     print("   Checking/Creating Schema Registry API key...")
     sr_api_result = cloud_manager.get_or_create_schema_registry_api_key(
-        env_id, 
-        service_account_id, 
+        env_id,
+        api_key_owner_id,
         expected_api_key=expected_sr_api_key,
         cluster_id=cluster_id,
-        description="Schema Registry API key for F1 Leaderboard"
+        description="Schema Registry API key for F1 Leaderboard",
+        owner_kind=api_key_owner_kind
     )
     if sr_api_result:
         sr_api_key, sr_api_secret = sr_api_result

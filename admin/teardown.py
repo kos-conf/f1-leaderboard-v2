@@ -662,33 +662,54 @@ def main():
             pass
     
     # Step 3 is skipped if no topics found or cluster not found
-    
-    # Step 4: Delete Flink compute pool
-    print("Step 4: Deleting Flink Compute Pool...")
+
+    # Step 4: Delete API keys (before cluster/environment so IAM has no dangling references)
+    print("Step 4: Deleting API Keys...")
+    try:
+        config = load_config()
+        kafka_key_id = config.get('kafka', {}).get('sasl.username')
+        sr_key_id = config.get('kafka', {}).get('schema_registry_api_key')
+
+        deleted_any = False
+        if kafka_key_id:
+            if cloud_manager.delete_api_key(kafka_key_id):
+                deleted_any = True
+        if sr_key_id:
+            if cloud_manager.delete_api_key(sr_key_id):
+                deleted_any = True
+
+        if not kafka_key_id and not sr_key_id:
+            print("   ⚠️  No API key IDs found in backend/config.yaml. Skipping.")
+    except Exception as e:
+        print(f"   ⚠️  Error deleting API keys: {e}")
+    print()
+
+    # Step 5: Delete Flink compute pool
+    print("Step 5: Deleting Flink Compute Pool...")
     if found_resources['flink_pool']:
         cloud_manager.delete_flink_compute_pool(env_id, found_resources['flink_pool']['id'])
     else:
         print("   ⚠️  Flink compute pool not found. Skipping.")
     print()
-    
-    # Step 5: Delete Kafka cluster
-    print("Step 5: Deleting Kafka Cluster...")
+
+    # Step 6: Delete Kafka cluster
+    print("Step 6: Deleting Kafka Cluster...")
     if found_resources['cluster']:
         cloud_manager.delete_kafka_cluster(env_id, found_resources['cluster']['id'])
     else:
         print("   ⚠️  Kafka cluster not found. Skipping.")
     print()
-    
-    # Step 6: Delete service account
-    print("Step 6: Deleting Service Account...")
+
+    # Step 7: Delete service account
+    print("Step 7: Deleting Service Account...")
     if found_resources['service_account']:
         cloud_manager.delete_service_account(found_resources['service_account']['id'])
     else:
         print("   ⚠️  Service account not found. Skipping.")
     print()
-    
-    # Step 7: Delete environment
-    print("Step 7: Deleting Environment...")
+
+    # Step 8: Delete environment
+    print("Step 8: Deleting Environment...")
     if found_resources['environment']:
         cloud_manager.delete_environment(found_resources['environment']['id'])
     else:
