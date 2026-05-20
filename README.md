@@ -57,9 +57,8 @@ To deploy infrastructure programmatically, you need Confluent Cloud Management A
 4. Provide name and description (Optional) and click next
 5. Download API key and click **Complete**
 
-### Step 1.3: Update the Provided PROMOCODE using [this](https://confluent.cloud/settings/billing/payment) link
 
-### Step 1.4: Configure Credentials
+### Step 1.3: Configure Credentials
 
 1. **Clone the repository:**
    ```bash
